@@ -1,7 +1,6 @@
 
 
 #include "Arduino.h"
-#include "config.h"
 #include "domoticz.h"
 
 #include <ESP8266WiFi.h>

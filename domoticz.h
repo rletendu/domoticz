@@ -3,7 +3,7 @@
 #define domoticz_h
 
 #include "Arduino.h"
-#include "config.h"
+#include "../config_domoticz.h"
 #include <ESP8266WiFi.h>
 
 #define WIFI_TIMEOUT_MAX 50
