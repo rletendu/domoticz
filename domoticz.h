@@ -40,6 +40,7 @@ class Domoticz
     bool update_temperature(int idx, const char* temp);
     bool update_luminosity(int idx, const char* lux);
     bool udpate_temp_hum(int idx, const char* temp, const char* hum);
+    bool udpate_temp_hum(int idx, float temp, float hum);
     bool udpate_temp_hum_baro(int idx, const char* temp, const char* hum, const char* baro);
     bool update_voltage(int idx, const char* voltage);
     bool update_wind(int idx, const char* bearing, const char* speed_10ms);

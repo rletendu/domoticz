@@ -240,7 +240,16 @@ bool Domoticz::update_voltage(int idx, const char* volt)
 
 bool Domoticz::udpate_temp_hum(int idx, const char* temp, const char* hum)
 {
-  return _update_sensor(idx, 2, hum, "0");
+  return _update_sensor(idx, 3, temp, hum, "0");
+}
+
+bool Domoticz::udpate_temp_hum(int idx, float temp, float hum)
+{
+  char str_temp[10];
+  char str_hum[10];
+  dtostrf(temp, 4, 1, str_temp);
+  dtostrf(hum, 4, 1, str_hum);
+  return _update_sensor(idx, 3, str_temp, str_hum, "0");
 }
 
 bool Domoticz::update_barometer(int idx, const char* pressure)
