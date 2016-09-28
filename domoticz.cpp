@@ -19,14 +19,32 @@
 
 Domoticz::Domoticz(void)
 {
-
+  WiFi.disconnect();
+  WiFi.mode(WIFI_STA);
 }
 
 bool Domoticz::begin(void)
 {
   char wifi_timeout = 0;
+  uint8_t mac[6];
   DEBUG_PRINT("-Connecting Wifi "); DEBUG_PRINTLN(MYSSID);
   WiFi.disconnect();
+  
+  WiFi.macAddress(mac);
+  DEBUG_PRINT("MAC: ");
+  DEBUG_PRINT(mac[5],HEX);
+  DEBUG_PRINT(":");
+  DEBUG_PRINT(mac[4],HEX);
+  DEBUG_PRINT(":");
+  DEBUG_PRINT(mac[3],HEX);
+  DEBUG_PRINT(":");
+  DEBUG_PRINT(mac[2],HEX);
+  DEBUG_PRINT(":");
+  DEBUG_PRINT(mac[1],HEX);
+  DEBUG_PRINT(":");
+  DEBUG_PRINTLN(mac[0],HEX);
+  
+
   WiFi.mode(WIFI_STA);
   WiFi.begin(MYSSID, PASSWD);
   while (WiFi.status() != WL_CONNECTED) {
@@ -107,6 +125,45 @@ bool Domoticz::get_variable(int idx, char* var)
         return false;
       }
       DEBUG_PRINTLN(var);
+      return true;
+    }
+  } else {
+    return false;
+  }
+}
+bool Domoticz::get_temperature(int idx, float *temp, uint8_t *hum, char *name)
+{
+  String str = "/json.htm?type=devices&rid=" + String(idx);
+  str.toCharArray(_buff, DOMO_BUFF_MAX);
+  char *str_float;
+  if (exchange()) {
+    DynamicJsonBuffer jsonBuffer;
+    JsonObject& root = jsonBuffer.parseObject(_buff);
+    if (!root.success()) {
+      DEBUG_PRINTLN("-Error Parsing Json");
+      return false;
+    } else {
+      DEBUG_PRINTLN("-Parsing OK");
+      if (root.containsKey("result")) {
+        float temperature = root["result"][0]["Temp"];
+        const char * n = root["result"][0]["Name"];
+        strcpy(name, n);
+        *temp = temperature;
+		JsonObject & _ooo = root["result"][0];
+		if (_ooo.containsKey("Humidity")) {
+        //if (root.containsKey("Humidity")) {
+          uint8_t h = root["result"][0]["Humidity"];
+		  *hum = h;
+		} else {
+			*hum = 255;
+		}
+      } else {
+        DEBUG_PRINTLN("-Value not found");
+        return false;
+      }
+      DEBUG_PRINT("Name:");DEBUG_PRINTLN(name);
+      DEBUG_PRINT("Temp found:");DEBUG_PRINTLN(*temp);
+      DEBUG_PRINT("Hum found:");DEBUG_PRINTLN(*hum);
       return true;
     }
   } else {

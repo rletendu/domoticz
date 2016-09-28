@@ -7,7 +7,7 @@
 #include <ESP8266WiFi.h>
 
 #define WIFI_TIMEOUT_MAX 50
-#define DOMO_BUFF_MAX 1000
+#define DOMO_BUFF_MAX 1500
 #define JSON_BUFF 600
 
 // Uncomment to enable printing out nice debug messages.
@@ -38,6 +38,7 @@ class Domoticz
     bool get_sunset(char *sunset);
     bool send_log_message(char *message);
     bool update_temperature(int idx, const char* temp);
+    bool get_temperature(int idx, float *temp, uint8_t *hum, char *name);
     bool update_luminosity(int idx, const char* lux);
 
     bool udpate_temp_hum(int idx, const char* temp, const char* hum);
