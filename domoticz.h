@@ -54,6 +54,7 @@ class Domoticz
   private:
     bool exchange(void);
     bool _update_sensor(int idx, int n, ...);
+    bool _get_device_status(int idx);
 
     WiFiClient _client;
     char _buff[DOMO_BUFF_MAX];

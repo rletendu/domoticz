@@ -133,10 +133,7 @@ bool Domoticz::get_variable(int idx, char* var)
 }
 bool Domoticz::get_temperature(int idx, float *temp, uint8_t *hum, char *name)
 {
-  String str = "/json.htm?type=devices&rid=" + String(idx);
-  str.toCharArray(_buff, DOMO_BUFF_MAX);
-  char *str_float;
-  if (exchange()) {
+  if (_get_device_status(idx)) {
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
@@ -151,7 +148,6 @@ bool Domoticz::get_temperature(int idx, float *temp, uint8_t *hum, char *name)
         *temp = temperature;
 		JsonObject & _ooo = root["result"][0];
 		if (_ooo.containsKey("Humidity")) {
-        //if (root.containsKey("Humidity")) {
           uint8_t h = root["result"][0]["Humidity"];
 		  *hum = h;
 		} else {
@@ -169,6 +165,14 @@ bool Domoticz::get_temperature(int idx, float *temp, uint8_t *hum, char *name)
   } else {
     return false;
   }
+}
+
+bool Domoticz::_get_device_status(int idx)
+{
+  String str = "/json.htm?type=devices&rid=" + String(idx);
+  str.toCharArray(_buff, DOMO_BUFF_MAX);
+  char *str_float;
+  return exchange();
 }
 
 bool Domoticz::get_servertime(char* servertime)
