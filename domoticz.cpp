@@ -146,13 +146,13 @@ bool Domoticz::get_temperature(int idx, float *temp, uint8_t *hum, char *name)
         const char * n = root["result"][0]["Name"];
         strcpy(name, n);
         *temp = temperature;
-		JsonObject & _ooo = root["result"][0];
-		if (_ooo.containsKey("Humidity")) {
+        JsonObject & _ooo = root["result"][0];
+        if (_ooo.containsKey("Humidity")) {
           uint8_t h = root["result"][0]["Humidity"];
-		  *hum = h;
-		} else {
-			*hum = 255;
-		}
+          *hum = h;
+        } else {
+          *hum = 255;
+        }
       } else {
         DEBUG_PRINTLN("-Value not found");
         return false;
@@ -329,8 +329,6 @@ bool Domoticz::update_wind(int idx, const char* bearing, const char* speed_10ms)
   const char* arr[] = {"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"};
   return _update_sensor(idx, 6, bearing, arr[(val % 16)], speed_10ms, speed_10ms, "0", "0");
 }
-
-
 
 bool Domoticz::update_switch(int idx, bool state)
 {
