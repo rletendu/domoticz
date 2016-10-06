@@ -308,8 +308,8 @@ bool Domoticz::udpate_temp_hum(int idx, float temp, float hum)
 {
   char str_temp[10];
   char str_hum[10];
-  dtostrf(temp, 4, 1, str_temp);
-  dtostrf(hum, 4, 1, str_hum);
+  dtostrf(temp, 3, 1, str_temp);
+  dtostrf(hum, 3, 1, str_hum);
   return _update_sensor(idx, 3, str_temp, str_hum, "0");
 }
 
