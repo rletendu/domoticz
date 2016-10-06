@@ -288,11 +288,26 @@ bool Domoticz::update_temperature(int idx, const char* temp)
   return _update_sensor(idx, 1, temp);
 }
 
+bool Domoticz::update_temperature(int idx, float temp)
+{
+  char str_hum[10];
+  dtostrf(temp, 3, 1, str_temp);
+  return _update_sensor(idx, 1, str_temp);
+}
+
 
 bool Domoticz::update_luminosity(int idx, const char* lux)
 {
   return _update_sensor(idx, 1, lux);
 }
+
+bool Domoticz::update_luminosity(int idx, float lux)
+{
+  char str_lum[10];
+  snprintf(str_lum, sizeof(str_lum), "%d", lux);
+  return _update_sensor(idx, 1, str_lum);
+}
+
 
 bool Domoticz::update_voltage(int idx, const char* volt)
 {
