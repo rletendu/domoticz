@@ -28,7 +28,6 @@
 class Domoticz
 {
   public:
-
     Domoticz();
     bool begin(void);
     bool stop(void);
@@ -37,19 +36,30 @@ class Domoticz
     bool get_sunrise(char *sunrise);
     bool get_sunset(char *sunset);
     bool send_log_message(char *message);
+
     bool update_temperature(int idx, const char* temp);
-    bool get_temperature(int idx, float *temp, uint8_t *hum, char *name);
+    bool get_temperature(int idx, float *temp, char *name);
+
     bool update_luminosity(int idx, const char* lux);
+    bool get_luminosity(int idx, int lum, char* name);
 
     bool udpate_temp_hum(int idx, const char* temp, const char* hum);
     bool udpate_temp_hum(int idx, float temp, float hum);
+    bool get_temp_hum(int idx, float *temp, uint8_t *hum, char *name);
 
     bool udpate_temp_hum_baro(int idx, const char* temp, const char* hum, const char* baro);
+    bool get_temp_hum_baro(int idx, float *temp, uint8_t *hum, uint16_t *baro, char *name);
+
     bool update_voltage(int idx, const char* voltage);
+    bool get_voltage(int idx, float voltage, char* name);
+
     bool update_wind(int idx, const char* bearing, const char* speed_10ms);
     bool update_barometer(int idx, const char* pressure);
-    bool update_switch(int idx, bool state);
 
+    bool update_switch(int idx, bool state);
+    bool get_switch_status(int idx, char *status, char *name);
+
+    bool get_device_data(int idx, char *data, char *name);
 
   private:
     bool exchange(void);
