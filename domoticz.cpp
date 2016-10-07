@@ -1,5 +1,3 @@
-
-
 #include "Arduino.h"
 #include "domoticz.h"
 
@@ -13,8 +11,6 @@
 #ifndef DOMOTICZ_PORT
 #error DOMOTICZ_PORT is not defined
 #endif
-
-
 Domoticz::Domoticz(void)
 {
   WiFi.disconnect();
