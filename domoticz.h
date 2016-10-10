@@ -38,10 +38,12 @@ class Domoticz
     bool send_log_message(char *message);
 
     bool update_temperature(int idx, const char* temp);
+    bool update_temperature(int idx, float temp);
     bool get_temperature(int idx, float *temp, char *name);
 
     bool update_luminosity(int idx, const char* lux);
-    bool get_luminosity(int idx, int lum, char* name);
+    bool update_luminosity(int idx, int lux);
+    bool get_luminosity(int idx, int *lum, char* name);
 
     bool udpate_temp_hum(int idx, const char* temp, const char* hum);
     bool udpate_temp_hum(int idx, float temp, float hum);
@@ -51,7 +53,8 @@ class Domoticz
     bool get_temp_hum_baro(int idx, float *temp, uint8_t *hum, uint16_t *baro, char *name);
 
     bool update_voltage(int idx, const char* voltage);
-    bool get_voltage(int idx, float voltage, char* name);
+    bool update_voltage(int idx, float voltage);
+    bool get_voltage(int idx, float *voltage, char* name);
 
     bool update_wind(int idx, const char* bearing, const char* speed_10ms);
     bool update_barometer(int idx, const char* pressure);
@@ -70,5 +73,7 @@ class Domoticz
     char _buff[DOMO_BUFF_MAX];
 
 };
+
+#include "domoticz.cpp"
 
 #endif

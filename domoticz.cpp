@@ -213,7 +213,7 @@ bool Domoticz::update_temperature(int idx, const char* temp)
 
 bool Domoticz::update_temperature(int idx, float temp)
 {
-  char str_hum[10];
+  char str_temp[10];
   dtostrf(temp, 3, 1, str_temp);
   return _update_sensor(idx, 1, str_temp);
 }
@@ -245,11 +245,11 @@ bool Domoticz::update_voltage(int idx, const char* volt)
 bool Domoticz::update_voltage(int idx, float volt)
 {
   char str_volt[10];
-  dtostrf(volt, 3, 1, str_temp);
+  dtostrf(volt, 3, 1, str_volt);
   return _update_sensor(idx, 1, str_volt);
 }
 
-bool Domoticz::get_voltage(int idx, float voltage, char* name)
+bool Domoticz::get_voltage(int idx, float *voltage, char* name)
 {
   if (_get_device_status(idx)) {
     DynamicJsonBuffer jsonBuffer;
@@ -269,8 +269,7 @@ bool Domoticz::get_voltage(int idx, float voltage, char* name)
         return false;
       }
       DEBUG_PRINT("Name:");DEBUG_PRINTLN(name);
-      DEBUG_PRINT("Temp found:");DEBUG_PRINTLN(*temp);
-      DEBUG_PRINT("Hum found:");DEBUG_PRINTLN(*hum);
+      DEBUG_PRINT("Voltage found:");DEBUG_PRINTLN(*voltage);
       return true;
     }
   } else {
@@ -410,15 +409,14 @@ bool Domoticz::get_switch_status(int idx, char *status, char *name)
       if (root.containsKey("result")) {
         const char * n = root["result"][0]["Name"];
         strcpy(name, n);
-        const char * n = root["result"][0]["Status"];
-        strcpy(status, n);
+        const char * s = root["result"][0]["Status"];
+        strcpy(status, s);
       } else {
         DEBUG_PRINTLN("-Value not found");
         return false;
       }
       DEBUG_PRINT("Name:");DEBUG_PRINTLN(name);
-      DEBUG_PRINT("Temp found:");DEBUG_PRINTLN(*temp);
-      DEBUG_PRINT("Hum found:");DEBUG_PRINTLN(*hum);
+      DEBUG_PRINT("Status found:");DEBUG_PRINTLN(status);
       return true;
     }
   } else {
@@ -439,15 +437,14 @@ bool Domoticz::get_device_data(int idx, char *data, char *name)
       if (root.containsKey("result")) {
         const char * n = root["result"][0]["Name"];
         strcpy(name, n);
-        const char * n = root["result"][0]["Data"];
-        strcpy(data, n);
+        const char * d = root["result"][0]["Data"];
+        strcpy(data, d);
       } else {
         DEBUG_PRINTLN("-Value not found");
         return false;
       }
       DEBUG_PRINT("Name:");DEBUG_PRINTLN(name);
-      DEBUG_PRINT("Temp found:");DEBUG_PRINTLN(*temp);
-      DEBUG_PRINT("Hum found:");DEBUG_PRINTLN(*hum);
+      DEBUG_PRINT("Data found:");DEBUG_PRINTLN(data);
       return true;
     }
   } else {
