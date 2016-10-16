@@ -21,34 +21,34 @@ bool Domoticz::begin(void)
 {
   char wifi_timeout = 0;
   uint8_t mac[6];
-  DEBUG_PRINT("-Connecting Wifi "); DEBUG_PRINTLN(MYSSID);
+  DEBUG_DOMO_PRINT("-Connecting Wifi "); DEBUG_DOMO_PRINTLN(MYSSID);
   WiFi.disconnect();
   
   WiFi.macAddress(mac);
-  DEBUG_PRINT("MAC: ");
-  DEBUG_PRINT(mac[5],HEX);
-  DEBUG_PRINT(":");
-  DEBUG_PRINT(mac[4],HEX);
-  DEBUG_PRINT(":");
-  DEBUG_PRINT(mac[3],HEX);
-  DEBUG_PRINT(":");
-  DEBUG_PRINT(mac[2],HEX);
-  DEBUG_PRINT(":");
-  DEBUG_PRINT(mac[1],HEX);
-  DEBUG_PRINT(":");
-  DEBUG_PRINTLN(mac[0],HEX);
+  DEBUG_DOMO_PRINT("MAC: ");
+  DEBUG_DOMO_PRINT(mac[5],HEX);
+  DEBUG_DOMO_PRINT(":");
+  DEBUG_DOMO_PRINT(mac[4],HEX);
+  DEBUG_DOMO_PRINT(":");
+  DEBUG_DOMO_PRINT(mac[3],HEX);
+  DEBUG_DOMO_PRINT(":");
+  DEBUG_DOMO_PRINT(mac[2],HEX);
+  DEBUG_DOMO_PRINT(":");
+  DEBUG_DOMO_PRINT(mac[1],HEX);
+  DEBUG_DOMO_PRINT(":");
+  DEBUG_DOMO_PRINTLN(mac[0],HEX);
   
   WiFi.mode(WIFI_STA);
   WiFi.begin(MYSSID, PASSWD);
   while (WiFi.status() != WL_CONNECTED) {
     if (++wifi_timeout > WIFI_TIMEOUT_MAX) {
-      DEBUG_PRINTLN("-TIMEOUT!");
+      DEBUG_DOMO_PRINTLN("-TIMEOUT!");
       return false;
     }
     delay(500);
   }
-  DEBUG_PRINT("IP:");DEBUG_PRINTLN(WiFi.localIP());
-  DEBUG_PRINT("Link:");DEBUG_PRINT(WiFi.RSSI());DEBUG_PRINTLN("dBm");
+  DEBUG_DOMO_PRINT("IP:");DEBUG_DOMO_PRINTLN(WiFi.localIP());
+  DEBUG_DOMO_PRINT("Link:");DEBUG_DOMO_PRINT(WiFi.RSSI());DEBUG_DOMO_PRINTLN("dBm");
   return true;
 }
 
@@ -82,17 +82,17 @@ bool Domoticz::get_variable(int idx, char* var)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_PRINTLN("-Error Parsing Json");
+      DEBUG_DOMO_PRINTLN("-Error Parsing Json");
       return false;
     } else {
-      DEBUG_PRINTLN("-Parsing OK");
+      DEBUG_DOMO_PRINTLN("-Parsing OK");
       if (root.containsKey("result")) {
         strcpy(var, root["result"][0]["Value"]);
       } else {
-        DEBUG_PRINTLN("-Value not found");
+        DEBUG_DOMO_PRINTLN("-Value not found");
         return false;
       }
-      DEBUG_PRINTLN(var);
+      DEBUG_DOMO_PRINTLN(var);
       return true;
     }
   } else {
@@ -108,17 +108,17 @@ bool Domoticz::get_servertime(char* servertime)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_PRINTLN("Error Parsing Json");
+      DEBUG_DOMO_PRINTLN("Error Parsing Json");
       return false;
     } else {
-      DEBUG_PRINTLN("Parsing OK");
+      DEBUG_DOMO_PRINTLN("Parsing OK");
       if (root.containsKey("ServerTime")) {
         strcpy(servertime, root["ServerTime"]);
       } else {
-        DEBUG_PRINTLN("Value not found");
+        DEBUG_DOMO_PRINTLN("Value not found");
         return false;
       }
-      DEBUG_PRINTLN(servertime);
+      DEBUG_DOMO_PRINTLN(servertime);
       return true;
     }
   } else {
@@ -134,17 +134,17 @@ bool Domoticz::get_sunrise(char* sunrise)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_PRINTLN("Error Parsing Json");
+      DEBUG_DOMO_PRINTLN("Error Parsing Json");
       return false;
     } else {
-      DEBUG_PRINTLN("Parsing OK");
+      DEBUG_DOMO_PRINTLN("Parsing OK");
       if (root.containsKey("Sunrise")) {
         strcpy(sunrise, root["Sunrise"]);
       } else {
-        DEBUG_PRINTLN("Value not found");
+        DEBUG_DOMO_PRINTLN("Value not found");
         return false;
       }
-      DEBUG_PRINTLN(sunrise);
+      DEBUG_DOMO_PRINTLN(sunrise);
       return true;
     }
   } else {
@@ -160,17 +160,17 @@ bool Domoticz::get_sunset(char* sunset)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_PRINTLN("Error Parsing Json");
+      DEBUG_DOMO_PRINTLN("Error Parsing Json");
       return false;
     } else {
-      DEBUG_PRINTLN("Parsing OK");
+      DEBUG_DOMO_PRINTLN("Parsing OK");
       if (root.containsKey("Sunset")) {
         strcpy(sunset, root["Sunset"]);
       } else {
-        DEBUG_PRINTLN("Value not found");
+        DEBUG_DOMO_PRINTLN("Value not found");
         return false;
       }
-      DEBUG_PRINTLN(sunset);
+      DEBUG_DOMO_PRINTLN(sunset);
       return true;
     }
   } else {
@@ -255,21 +255,21 @@ bool Domoticz::get_voltage(int idx, float *voltage, char* name)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_PRINTLN("-Error Parsing Json");
+      DEBUG_DOMO_PRINTLN("-Error Parsing Json");
       return false;
     } else {
-      DEBUG_PRINTLN("-Parsing OK");
+      DEBUG_DOMO_PRINTLN("-Parsing OK");
       if (root.containsKey("result")) {
         const char * n = root["result"][0]["Name"];
         strcpy(name, n);
         float v = root["result"][0]["Voltage"];
         *voltage = v;
       } else {
-        DEBUG_PRINTLN("-Value not found");
+        DEBUG_DOMO_PRINTLN("-Value not found");
         return false;
       }
-      DEBUG_PRINT("Name:");DEBUG_PRINTLN(name);
-      DEBUG_PRINT("Voltage found:");DEBUG_PRINTLN(*voltage);
+      DEBUG_DOMO_PRINT("Name:");DEBUG_DOMO_PRINTLN(name);
+      DEBUG_DOMO_PRINT("Voltage found:");DEBUG_DOMO_PRINTLN(*voltage);
       return true;
     }
   } else {
@@ -297,10 +297,10 @@ bool Domoticz::get_temp_hum(int idx, float *temp, uint8_t *hum, char *name)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_PRINTLN("-Error Parsing Json");
+      DEBUG_DOMO_PRINTLN("-Error Parsing Json");
       return false;
     } else {
-      DEBUG_PRINTLN("-Parsing OK");
+      DEBUG_DOMO_PRINTLN("-Parsing OK");
       if (root.containsKey("result")) {
         float temperature = root["result"][0]["Temp"];
         const char * n = root["result"][0]["Name"];
@@ -314,12 +314,12 @@ bool Domoticz::get_temp_hum(int idx, float *temp, uint8_t *hum, char *name)
           *hum = 255;
         }
       } else {
-        DEBUG_PRINTLN("-Value not found");
+        DEBUG_DOMO_PRINTLN("-Value not found");
         return false;
       }
-      DEBUG_PRINT("Name:");DEBUG_PRINTLN(name);
-      DEBUG_PRINT("Temp found:");DEBUG_PRINTLN(*temp);
-      DEBUG_PRINT("Hum found:");DEBUG_PRINTLN(*hum);
+      DEBUG_DOMO_PRINT("Name:");DEBUG_DOMO_PRINTLN(name);
+      DEBUG_DOMO_PRINT("Temp found:");DEBUG_DOMO_PRINTLN(*temp);
+      DEBUG_DOMO_PRINT("Hum found:");DEBUG_DOMO_PRINTLN(*hum);
       return true;
     }
   } else {
@@ -343,10 +343,10 @@ bool Domoticz::get_temp_hum_baro(int idx, float *temp, uint8_t *hum, uint16_t *b
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_PRINTLN("-Error Parsing Json");
+      DEBUG_DOMO_PRINTLN("-Error Parsing Json");
       return false;
     } else {
-      DEBUG_PRINTLN("-Parsing OK");
+      DEBUG_DOMO_PRINTLN("-Parsing OK");
       if (root.containsKey("result")) {
         float temperature = root["result"][0]["Temp"];
         *temp = temperature;
@@ -357,12 +357,12 @@ bool Domoticz::get_temp_hum_baro(int idx, float *temp, uint8_t *hum, uint16_t *b
         const char * n = root["result"][0]["Name"];
         strcpy(name, n);
       } else {
-        DEBUG_PRINTLN("-Value not found");
+        DEBUG_DOMO_PRINTLN("-Value not found");
         return false;
       }
-      DEBUG_PRINT("Name:");DEBUG_PRINTLN(name);
-      DEBUG_PRINT("Temp found:");DEBUG_PRINTLN(*temp);
-      DEBUG_PRINT("Hum found:");DEBUG_PRINTLN(*hum);
+      DEBUG_DOMO_PRINT("Name:");DEBUG_DOMO_PRINTLN(name);
+      DEBUG_DOMO_PRINT("Temp found:");DEBUG_DOMO_PRINTLN(*temp);
+      DEBUG_DOMO_PRINT("Hum found:");DEBUG_DOMO_PRINTLN(*hum);
       return true;
     }
   } else {
@@ -402,21 +402,21 @@ bool Domoticz::get_switch_status(int idx, char *status, char *name)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_PRINTLN("-Error Parsing Json");
+      DEBUG_DOMO_PRINTLN("-Error Parsing Json");
       return false;
     } else {
-      DEBUG_PRINTLN("-Parsing OK");
+      DEBUG_DOMO_PRINTLN("-Parsing OK");
       if (root.containsKey("result")) {
         const char * n = root["result"][0]["Name"];
         strcpy(name, n);
         const char * s = root["result"][0]["Status"];
         strcpy(status, s);
       } else {
-        DEBUG_PRINTLN("-Value not found");
+        DEBUG_DOMO_PRINTLN("-Value not found");
         return false;
       }
-      DEBUG_PRINT("Name:");DEBUG_PRINTLN(name);
-      DEBUG_PRINT("Status found:");DEBUG_PRINTLN(status);
+      DEBUG_DOMO_PRINT("Name:");DEBUG_DOMO_PRINTLN(name);
+      DEBUG_DOMO_PRINT("Status found:");DEBUG_DOMO_PRINTLN(status);
       return true;
     }
   } else {
@@ -430,21 +430,21 @@ bool Domoticz::get_device_data(int idx, char *data, char *name)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_PRINTLN("-Error Parsing Json");
+      DEBUG_DOMO_PRINTLN("-Error Parsing Json");
       return false;
     } else {
-      DEBUG_PRINTLN("-Parsing OK");
+      DEBUG_DOMO_PRINTLN("-Parsing OK");
       if (root.containsKey("result")) {
         const char * n = root["result"][0]["Name"];
         strcpy(name, n);
         const char * d = root["result"][0]["Data"];
         strcpy(data, d);
       } else {
-        DEBUG_PRINTLN("-Value not found");
+        DEBUG_DOMO_PRINTLN("-Value not found");
         return false;
       }
-      DEBUG_PRINT("Name:");DEBUG_PRINTLN(name);
-      DEBUG_PRINT("Data found:");DEBUG_PRINTLN(data);
+      DEBUG_DOMO_PRINT("Name:");DEBUG_DOMO_PRINTLN(name);
+      DEBUG_DOMO_PRINT("Data found:");DEBUG_DOMO_PRINTLN(data);
       return true;
     }
   } else {
@@ -456,25 +456,25 @@ bool Domoticz::exchange(void)
 {
   int i;
   if (!_client.connect(DOMOTICZ_SERVER, DOMOTICZ_PORT)) {
-    DEBUG_PRINTLN("connection failed");
+    DEBUG_DOMO_PRINTLN("connection failed");
     return false;
   }
   _client.println("GET " + (String)_buff + " HTTP/1.1");
-  DEBUG_PRINT("Request Sent: ");
-  DEBUG_PRINTLN("GET " + (String)_buff + " HTTP/1.1");
+  DEBUG_DOMO_PRINT("Request Sent: ");
+  DEBUG_DOMO_PRINTLN("GET " + (String)_buff + " HTTP/1.1");
   _client.println();
   String str = _client.readString();
   _client.stop();
-  DEBUG_PRINT("Response: ");
-  DEBUG_PRINTLN(str);
+  DEBUG_DOMO_PRINT("Response: ");
+  DEBUG_DOMO_PRINTLN(str);
   if (str.indexOf("HTTP/1.1 200 OK") == -1) {
-    DEBUG_PRINTLN("Response NOK");
+    DEBUG_DOMO_PRINTLN("Response NOK");
     return false;
   }
   str = str.substring(str.indexOf('{'));
   for (i = 0; i < sizeof(_buff); i++) { _buff[i] = 0; ESP.wdtFeed(); }
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  DEBUG_PRINT("_buff content:"); DEBUG_PRINTLN(strlen(_buff)); DEBUG_PRINTLN(_buff);
+  DEBUG_DOMO_PRINT("_buff content:"); DEBUG_DOMO_PRINTLN(strlen(_buff)); DEBUG_DOMO_PRINTLN(_buff);
   return true;
 }
 

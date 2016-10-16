@@ -14,15 +14,17 @@
 //#define DOMOTICZ_DEBUG
 
 // Define where debug output will be printed.
+#ifndef DEBUG_PRINTER
 #define DEBUG_PRINTER Serial
+#endif
 
 // Setup debug printing macros.
 #ifdef DOMOTICZ_DEBUG
-#define DEBUG_PRINT(...) { DEBUG_PRINTER.print(__VA_ARGS__); }
-#define DEBUG_PRINTLN(...) { DEBUG_PRINTER.println(__VA_ARGS__); }
+#define DEBUG_DOMO_PRINT(...) { DEBUG_PRINTER.print(__VA_ARGS__); }
+#define DEBUG_DOMO_PRINTLN(...) { DEBUG_PRINTER.println(__VA_ARGS__); }
 #else
-#define DEBUG_PRINT(...) {}
-#define DEBUG_PRINTLN(...) {}
+#define DEBUG_DOMO_PRINT(...) {}
+#define DEBUG_DOMO_PRINTLN(...) {}
 #endif
 
 class Domoticz
