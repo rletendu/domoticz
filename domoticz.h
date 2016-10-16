@@ -7,7 +7,7 @@
 #include <ESP8266WiFi.h>
 
 #define WIFI_TIMEOUT_MAX 50
-#define DOMO_BUFF_MAX 1500
+#define DOMO_BUFF_MAX 1700
 #define JSON_BUFF 600
 
 // Uncomment to enable printing out nice debug messages.
@@ -74,6 +74,8 @@ class Domoticz
 
 };
 
+// Scrappy way to add module in arduino subfolder ... But the obly only I found using ARDUINO IDE
+#ifdef ARDUINO
 #include "domoticz.cpp"
-
+#endif
 #endif
