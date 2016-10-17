@@ -489,7 +489,7 @@ bool Domoticz::_get_device_status(int idx)
 
 float Domoticz::vbat(void)
 {
-  return ESP.getVcc()*1000;
+  return ESP.getVcc()/1000.0;
 }
 
 int Domoticz::vbat_percentage(void)
