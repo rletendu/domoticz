@@ -1,4 +1,3 @@
-
 #ifndef domoticz_h
 #define domoticz_h
 
@@ -8,10 +7,6 @@
 
 #define WIFI_TIMEOUT_MAX 50
 #define DOMO_BUFF_MAX 1700
-#define JSON_BUFF 600
-
-// Uncomment to enable printing out nice debug messages.
-//#define DOMOTICZ_DEBUG
 
 // Define where debug output will be printed.
 #ifndef DEBUG_PRINTER
@@ -27,13 +22,24 @@
 #define DEBUG_DOMO_PRINTLN(...) {}
 #endif
 
+
+#ifndef DOMOTICZ_VBAT_MIN
+#define DOMOTICZ_VBAT_MIN 2000
+#endif
+#ifndef DOMOTICZ_VBAT_MAX
+#define DOMOTICZ_VBAT_MAX 3600
+#endif
+
+
 class Domoticz
 {
   public:
     Domoticz();
     bool begin(void);
     bool stop(void);
+
     bool get_variable(int idx, char* var);
+
     bool get_servertime(char *servertime);
     bool get_sunrise(char *sunrise);
     bool get_sunset(char *sunset);
@@ -66,9 +72,14 @@ class Domoticz
 
     bool get_device_data(int idx, char *data, char *name);
 
+    float vbat(void);
+    int vbat_percentage(void);
+    int rssi(void);
+    int rssi_12level(void);
+
   private:
     bool exchange(void);
-    bool _update_sensor(int idx, int n, ...);
+    bool _update_sensor(int idx, int nvalue, int n, ...);
     bool _get_device_status(int idx);
 
     WiFiClient _client;
@@ -76,7 +87,7 @@ class Domoticz
 
 };
 
-// Scrappy way to add module in arduino subfolder ... But the obly only I found using ARDUINO IDE
+// Scrappy way to add module in arduino subfolder ... But the only only I found using ARDUINO IDE
 #ifdef ARDUINO
 #include "domoticz.cpp"
 #endif

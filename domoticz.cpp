@@ -11,6 +11,11 @@
 #ifndef DOMOTICZ_PORT
 #error DOMOTICZ_PORT is not defined
 #endif
+
+#ifdef DOMOTICZ_SEND_VBAT
+  ADC_MODE(ADC_VCC);
+#endif
+
 Domoticz::Domoticz(void)
 {
   WiFi.disconnect();
@@ -26,17 +31,9 @@ bool Domoticz::begin(void)
   
   WiFi.macAddress(mac);
   DEBUG_DOMO_PRINT("MAC: ");
-  DEBUG_DOMO_PRINT(mac[5],HEX);
-  DEBUG_DOMO_PRINT(":");
-  DEBUG_DOMO_PRINT(mac[4],HEX);
-  DEBUG_DOMO_PRINT(":");
-  DEBUG_DOMO_PRINT(mac[3],HEX);
-  DEBUG_DOMO_PRINT(":");
-  DEBUG_DOMO_PRINT(mac[2],HEX);
-  DEBUG_DOMO_PRINT(":");
-  DEBUG_DOMO_PRINT(mac[1],HEX);
-  DEBUG_DOMO_PRINT(":");
-  DEBUG_DOMO_PRINTLN(mac[0],HEX);
+  DEBUG_DOMO_PRINT(mac[5],HEX);DEBUG_DOMO_PRINT(":");DEBUG_DOMO_PRINT(mac[4],HEX);DEBUG_DOMO_PRINT(":");
+  DEBUG_DOMO_PRINT(mac[3],HEX);DEBUG_DOMO_PRINT(":");  DEBUG_DOMO_PRINT(mac[2],HEX); DEBUG_DOMO_PRINT(":");
+  DEBUG_DOMO_PRINT(mac[1],HEX);  DEBUG_DOMO_PRINT(":");DEBUG_DOMO_PRINTLN(mac[0],HEX);
   
   WiFi.mode(WIFI_STA);
   WiFi.begin(MYSSID, PASSWD);
@@ -58,7 +55,7 @@ bool Domoticz::send_log_message(char *message)
 {
   int i;
   String str = "/json.htm?type=command&param=addlogmessage&message=";
-  // Be sure to remove spaces in strinf -> replaced by '_'
+  // Be sure to remove spaces in string -> replaced by '_'
   for (i = 0; i < strlen(message); i++) {
     if (message[i] == ' ') {
       message[i] = '_';
@@ -178,12 +175,17 @@ bool Domoticz::get_sunset(char* sunset)
   }
 }
 
-bool Domoticz::_update_sensor(int idx, int n, ...)
+bool Domoticz::_update_sensor(int idx, int nvalue, int n, ...)
 {
   int i;
-  String str = "/json.htm?type=command&param=udevice&idx=" + String(idx) + "&nvalue=0&svalue=";
+  int vbat;
+  int quality;
+  int dbm;
+  
+  String str = "/json.htm?type=command&param=udevice&idx=" + String(idx) + "&nvalue=";
+  str +=nvalue;
+  str += "&svalue=";
   char *z;
-
   if (n < 1) {
     return false;
   }
@@ -197,10 +199,20 @@ bool Domoticz::_update_sensor(int idx, int n, ...)
       str += ";";
     }
   }
+ 
+#ifdef DOMOTICZ_SEND_VBAT
+  str += "&battery=";
+  str += vbat_percentage();
+#endif
+
+#ifdef DOMOTICZ_SEND_RSSI
+  str += "&rssi=";
+  str += rssi_12level();
+#endif
+
   str.toCharArray(_buff, DOMO_BUFF_MAX);
   if (exchange()) {
     return true;
-
   } else {
     return false;
   }
@@ -208,14 +220,14 @@ bool Domoticz::_update_sensor(int idx, int n, ...)
 
 bool Domoticz::update_temperature(int idx, const char* temp)
 {
-  return _update_sensor(idx, 1, temp);
+  return _update_sensor(idx, 0, 1, temp);
 }
 
 bool Domoticz::update_temperature(int idx, float temp)
 {
   char str_temp[10];
   dtostrf(temp, 3, 1, str_temp);
-  return _update_sensor(idx, 1, str_temp);
+  return _update_sensor(idx, 0, 1, str_temp);
 }
 
 bool Domoticz::get_temperature(int idx, float *temp, char *name)
@@ -227,26 +239,26 @@ bool Domoticz::get_temperature(int idx, float *temp, char *name)
 
 bool Domoticz::update_luminosity(int idx, const char* lux)
 {
-  return _update_sensor(idx, 1, lux);
+  return _update_sensor(idx, 0, 1, lux);
 }
 
 bool Domoticz::update_luminosity(int idx, int lux)
 {
   char str_lum[10];
   snprintf(str_lum, sizeof(str_lum), "%d", lux);
-  return _update_sensor(idx, 1, str_lum);
+  return _update_sensor(idx, 0, 1, str_lum);
 }
 
 bool Domoticz::update_voltage(int idx, const char* volt)
 {
-  return _update_sensor(idx, 1, volt);
+  return _update_sensor(idx, 0, 1, volt);
 }
 
 bool Domoticz::update_voltage(int idx, float volt)
 {
   char str_volt[10];
   dtostrf(volt, 3, 1, str_volt);
-  return _update_sensor(idx, 1, str_volt);
+  return _update_sensor(idx, 0, 1, str_volt);
 }
 
 bool Domoticz::get_voltage(int idx, float *voltage, char* name)
@@ -279,7 +291,7 @@ bool Domoticz::get_voltage(int idx, float *voltage, char* name)
 
 bool Domoticz::udpate_temp_hum(int idx, const char* temp, const char* hum)
 {
-  return _update_sensor(idx, 3, temp, hum, "0");
+  return _update_sensor(idx, 0, 3, temp, hum, "0");
 }
 
 bool Domoticz::udpate_temp_hum(int idx, float temp, float hum)
@@ -288,7 +300,7 @@ bool Domoticz::udpate_temp_hum(int idx, float temp, float hum)
   char str_hum[10];
   dtostrf(temp, 3, 1, str_temp);
   dtostrf(hum, 3, 1, str_hum);
-  return _update_sensor(idx, 3, str_temp, str_hum, "0");
+  return _update_sensor(idx, 0, 3, str_temp, str_hum, "0");
 }
 
 bool Domoticz::get_temp_hum(int idx, float *temp, uint8_t *hum, char *name)
@@ -329,12 +341,12 @@ bool Domoticz::get_temp_hum(int idx, float *temp, uint8_t *hum, char *name)
 
 bool Domoticz::update_barometer(int idx, const char* pressure)
 {
-  return _update_sensor(idx, 2, pressure, "0");
+  return _update_sensor(idx, 0, 2, pressure, "0");
 }
 
 bool Domoticz::udpate_temp_hum_baro(int idx, const char* temp, const char* hum, const char* baro)
 {
-  return _update_sensor(idx, 5, temp, hum, "0", baro, "0");
+  return _update_sensor(idx, 0, 5, temp, hum, "0", baro, "0");
 }
 
 bool Domoticz::get_temp_hum_baro(int idx, float *temp, uint8_t *hum, uint16_t *baro, char *name)
@@ -374,25 +386,15 @@ bool Domoticz::update_wind(int idx, const char* bearing, const char* speed_10ms)
 {
   int val = int((atoi(bearing) / 22.5) + .5);
   const char* arr[] = {"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"};
-  return _update_sensor(idx, 6, bearing, arr[(val % 16)], speed_10ms, speed_10ms, "0", "0");
+  return _update_sensor(idx, 0, 6, bearing, arr[(val % 16)], speed_10ms, speed_10ms, "0", "0");
 }
 
 bool Domoticz::update_switch(int idx, bool state)
 {
-  int i;
-  String str = "/json.htm?type=command&param=udevice&idx=" + String(idx) + "&nvalue="; ;
-  char *z;
   if (state) {
-    str +="0&svalue=0";
+    return _update_sensor(idx, 1, 1, "1"); 
   } else {
-    str += "1&svalue=1";
-  }
-  str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (exchange()) {
-    return true;
-
-  } else {
-    return false;
+    return _update_sensor(idx, 0, 1, "0");
   }
 }
 
@@ -483,4 +485,36 @@ bool Domoticz::_get_device_status(int idx)
   String str = "/json.htm?type=devices&rid=" + String(idx);
   str.toCharArray(_buff, DOMO_BUFF_MAX);
   return exchange();
+}
+
+float Domoticz::vbat(void)
+{
+  return ESP.getVcc()*1000;
+}
+
+int Domoticz::vbat_percentage(void)
+{
+  return map(ESP.getVcc(), DOMOTICZ_VBAT_MIN, DOMOTICZ_VBAT_MAX, 0, 100);
+}
+
+int Domoticz::rssi(void)
+{
+  return WiFi.RSSI();
+}
+
+int Domoticz::rssi_12level(void)
+{
+  int dbm;
+  int quality;
+  dbm = WiFi.RSSI();
+ // dBm to Quality:
+  if(dbm <= -100) {
+    quality = 0;
+  } else if(dbm >= -50) {
+    quality = 12;
+  } else {
+    quality = 2 * (dbm + 100);
+    quality = map(quality, 0 , 100, 0, 12);
+  }
+  return quality;
 }
