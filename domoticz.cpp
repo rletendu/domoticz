@@ -2,6 +2,8 @@
 #include "domoticz.h"
 
 #include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+
 #include <ArduinoJson.h>
 
 #ifndef DOMOTICZ_SERVER
@@ -457,27 +459,28 @@ bool Domoticz::get_device_data(int idx, char *data, char *name)
 bool Domoticz::exchange(void)
 {
   int i;
-  if (!_client.connect(DOMOTICZ_SERVER, DOMOTICZ_PORT)) {
-    DEBUG_DOMO_PRINTLN("connection failed");
+
+  HTTPClient http;
+  String url = "http://"+String(DOMOTICZ_SERVER)+":"+String(DOMOTICZ_PORT)+(String)_buff;
+  http.begin(url);
+#ifdef DOMOTICZ_USER
+  http.setAuthorization(DOMOTICZ_USER,DOMOTICZ_PASSWD);
+#endif
+  int httpCode = http.GET();
+  if(httpCode !=  HTTP_CODE_OK) {
+    DEBUG_DOMO_PRINT("[HTTP] GET failed code: ");DEBUG_DOMO_PRINTLN(httpCode);
+    http.end();
     return false;
   }
-  _client.println("GET " + (String)_buff + " HTTP/1.1");
-  DEBUG_DOMO_PRINT("Request Sent: ");
-  DEBUG_DOMO_PRINTLN("GET " + (String)_buff + " HTTP/1.1");
-  _client.println();
-  String str = _client.readString();
-  _client.stop();
-  DEBUG_DOMO_PRINT("Response: ");
-  DEBUG_DOMO_PRINTLN(str);
-  if (str.indexOf("HTTP/1.1 200 OK") == -1) {
-    DEBUG_DOMO_PRINTLN("Response NOK");
-    return false;
-  }
+  String str = http.getString();
+  http.end();
+
   str = str.substring(str.indexOf('{'));
   for (i = 0; i < sizeof(_buff); i++) { _buff[i] = 0; ESP.wdtFeed(); }
   str.toCharArray(_buff, DOMO_BUFF_MAX);
   DEBUG_DOMO_PRINT("_buff content:"); DEBUG_DOMO_PRINTLN(strlen(_buff)); DEBUG_DOMO_PRINTLN(_buff);
   return true;
+
 }
 
 bool Domoticz::_get_device_status(int idx)

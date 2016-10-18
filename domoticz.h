@@ -9,14 +9,14 @@
 #define DOMO_BUFF_MAX 1700
 
 // Define where debug output will be printed.
-#ifndef DEBUG_PRINTER
-#define DEBUG_PRINTER Serial
+#ifndef DEBUG_DOMO_PRINTER
+#define DEBUG_DOMO_PRINTER Serial
 #endif
 
 // Setup debug printing macros.
 #ifdef DOMOTICZ_DEBUG
-#define DEBUG_DOMO_PRINT(...) { DEBUG_PRINTER.print(__VA_ARGS__); }
-#define DEBUG_DOMO_PRINTLN(...) { DEBUG_PRINTER.println(__VA_ARGS__); }
+#define DEBUG_DOMO_PRINT(...) { DEBUG_DOMO_PRINTER.print(__VA_ARGS__); }
+#define DEBUG_DOMO_PRINTLN(...) { DEBUG_DOMO_PRINTER.println(__VA_ARGS__); }
 #else
 #define DEBUG_DOMO_PRINT(...) {}
 #define DEBUG_DOMO_PRINTLN(...) {}
@@ -82,7 +82,6 @@ class Domoticz
     bool _update_sensor(int idx, int nvalue, int n, ...);
     bool _get_device_status(int idx);
 
-    WiFiClient _client;
     char _buff[DOMO_BUFF_MAX];
 
 };
