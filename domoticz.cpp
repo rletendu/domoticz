@@ -65,7 +65,7 @@ bool Domoticz::send_log_message(char *message)
   }
   str += String(message);
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (exchange()) {
+  if (_exchange()) {
     return true;
   }
   else {
@@ -77,7 +77,7 @@ bool Domoticz::get_variable(int idx, char* var)
 {
   String str = "/json.htm?type=command&param=getuservariable&idx=" + String(idx);
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (exchange()) {
+  if (_exchange()) {
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
@@ -103,7 +103,7 @@ bool Domoticz::get_servertime(char* servertime)
 {
   String str = "/json.htm?type=command&param=getSunRiseSet";
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (exchange()) {
+  if (_exchange()) {
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
@@ -129,7 +129,7 @@ bool Domoticz::get_sunrise(char* sunrise)
 {
   String str = "/json.htm?type=command&param=getSunRiseSet";
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (exchange()) {
+  if (_exchange()) {
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
@@ -155,7 +155,7 @@ bool Domoticz::get_sunset(char* sunset)
 {
   String str = "/json.htm?type=command&param=getSunRiseSet";
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (exchange()) {
+  if (_exchange()) {
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
@@ -213,7 +213,7 @@ bool Domoticz::_update_sensor(int idx, int nvalue, int n, ...)
 #endif
 
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (exchange()) {
+  if (_exchange()) {
     return true;
   } else {
     return false;
@@ -456,7 +456,7 @@ bool Domoticz::get_device_data(int idx, char *data, char *name)
   }
 }
 
-bool Domoticz::exchange(void)
+bool Domoticz::_exchange(void)
 {
   int i;
 
@@ -487,7 +487,7 @@ bool Domoticz::_get_device_status(int idx)
 {
   String str = "/json.htm?type=devices&rid=" + String(idx);
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  return exchange();
+  return _exchange();
 }
 
 float Domoticz::vbat(void)

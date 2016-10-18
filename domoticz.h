@@ -5,8 +5,21 @@
 #include "../config_domoticz.h"
 #include <ESP8266WiFi.h>
 
-#define WIFI_TIMEOUT_MAX 50
-#define DOMO_BUFF_MAX 1700
+#ifndef WIFI_TIMEOUT_MAX
+#define WIFI_TIMEOUT_MAX      50
+#endif
+
+#ifndef DOMO_BUFF_MAX
+#define DOMO_BUFF_MAX       1700
+#endif
+
+#ifndef DOMOTICZ_VBAT_MIN
+#define DOMOTICZ_VBAT_MIN   2000
+#endif
+
+#ifndef DOMOTICZ_VBAT_MAX
+#define DOMOTICZ_VBAT_MAX   3600
+#endif
 
 // Define where debug output will be printed.
 #ifndef DEBUG_DOMO_PRINTER
@@ -23,12 +36,6 @@
 #endif
 
 
-#ifndef DOMOTICZ_VBAT_MIN
-#define DOMOTICZ_VBAT_MIN 2000
-#endif
-#ifndef DOMOTICZ_VBAT_MAX
-#define DOMOTICZ_VBAT_MAX 3600
-#endif
 
 
 class Domoticz
@@ -78,10 +85,9 @@ class Domoticz
     int rssi_12level(void);
 
   private:
-    bool exchange(void);
+    bool _exchange(void);
     bool _update_sensor(int idx, int nvalue, int n, ...);
     bool _get_device_status(int idx);
-
     char _buff[DOMO_BUFF_MAX];
 
 };
