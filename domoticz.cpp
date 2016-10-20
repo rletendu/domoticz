@@ -20,29 +20,35 @@
 
 Domoticz::Domoticz(void)
 {
-  WiFi.disconnect();
+  WiFi.disconnect(false);
   WiFi.mode(WIFI_STA);
 }
 
 bool Domoticz::begin(void)
 {
   char wifi_timeout = 0;
-  uint8_t mac[6];
   DEBUG_DOMO_PRINT("-Connecting Wifi "); DEBUG_DOMO_PRINTLN(MYSSID);
-  WiFi.disconnect();
-  
-  WiFi.macAddress(mac);
-  DEBUG_DOMO_PRINT("MAC: ");
-  DEBUG_DOMO_PRINT(mac[5],HEX);DEBUG_DOMO_PRINT(":");DEBUG_DOMO_PRINT(mac[4],HEX);DEBUG_DOMO_PRINT(":");
-  DEBUG_DOMO_PRINT(mac[3],HEX);DEBUG_DOMO_PRINT(":");  DEBUG_DOMO_PRINT(mac[2],HEX); DEBUG_DOMO_PRINT(":");
-  DEBUG_DOMO_PRINT(mac[1],HEX);  DEBUG_DOMO_PRINT(":");DEBUG_DOMO_PRINTLN(mac[0],HEX);
-  
+  WiFi.disconnect(false);
   WiFi.mode(WIFI_STA);
+  DEBUG_DOMO_PRINT("MAC: "); DEBUG_DOMO_PRINTLN(WiFi.macAddress().c_str());
   WiFi.begin(MYSSID, PASSWD);
   while (WiFi.status() != WL_CONNECTED) {
     if (++wifi_timeout > WIFI_TIMEOUT_MAX) {
       DEBUG_DOMO_PRINTLN("-TIMEOUT!");
+      DEBUG_DOMO_PRINT("-Wifi Status:");DEBUG_DOMO_PRINTLN(WiFi.status());
       return false;
+      /* For reference 
+    typedef enum {
+    WL_NO_SHIELD        = 255,   // for compatibility with WiFi Shield library
+    WL_IDLE_STATUS      = 0,
+    WL_NO_SSID_AVAIL    = 1,
+    WL_SCAN_COMPLETED   = 2,
+    WL_CONNECTED        = 3,
+    WL_CONNECT_FAILED   = 4,
+    WL_CONNECTION_LOST  = 5,
+    WL_DISCONNECTED     = 6
+} wl_status_t;
+*/
     }
     delay(500);
   }
