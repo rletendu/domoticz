@@ -468,6 +468,7 @@ bool Domoticz::_exchange(void)
 
   HTTPClient http;
   String url = "http://"+String(DOMOTICZ_SERVER)+":"+String(DOMOTICZ_PORT)+(String)_buff;
+  DEBUG_DOMO_PRINT("- Domo  url: ");DEBUG_DOMO_PRINTLN(url);
   http.begin(url);
 #ifdef DOMOTICZ_USER
   http.setAuthorization(DOMOTICZ_USER,DOMOTICZ_PASSWD);
