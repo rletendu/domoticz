@@ -43,6 +43,7 @@ class Domoticz
   public:
     Domoticz();
     bool begin(void);
+    bool begin(char *ssid, char *passw,char *server,char *port, char *domo_user, char *domo_passwd);
     bool stop(void);
 
     bool get_variable(int idx, char* var);
@@ -89,8 +90,16 @@ class Domoticz
     bool _update_sensor(int idx, int nvalue, int n, ...);
     bool _get_device_status(int idx);
     char _buff[DOMO_BUFF_MAX];
+    char _wifi_ssid[32];
+    char _wifi_pass[32];
+    char _domo_server[32];
+    char _domo_port[4];
+    char _domo_user[32];
+    char _domo_pass[4];
+
 
 };
+
 
 // Scrappy way to add module in arduino subfolder ... But the only only I found using ARDUINO IDE
 #ifdef ARDUINO

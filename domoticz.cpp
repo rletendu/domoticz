@@ -22,11 +22,47 @@ Domoticz::Domoticz(void)
 {
   WiFi.disconnect(false);
   WiFi.mode(WIFI_STA);
+  _wifi_ssid[0] = 0;
+  _wifi_pass[0] = 0;
+  _domo_server[0] = 0;
+  _domo_port[0] = 0;
+  _domo_user[0] = 0;
+  _domo_pass[0] = 0;
 }
+
 
 bool Domoticz::begin(void)
 {
+  begin(MYSSID, PASSWD, DOMOTICZ_SERVER, DOMOTICZ_PORT, "", "");
+}
+
+bool Domoticz::begin(char *ssid, char *passwd,char *server,char *port, char *domo_user, char *domo_passwd )
+{
   char wifi_timeout = 0;
+  int i;
+
+  for (i = 0; i <= strlen(ssid); i++) {
+    _wifi_ssid[i] = ssid[i];
+  }
+  for (i = 0; i <= strlen(passwd); i++) {
+    _wifi_pass[i] = passwd[i];
+  }
+
+  for (i = 0; i <= strlen(server); i++) {
+    _domo_server[i] = server[i];
+  }
+  for (i = 0; i <= strlen(port); i++) {
+    _domo_port[i] = port[i];
+  }
+  if (strlen(domo_user)) {
+    for (i = 0; i <= strlen(domo_user); i++) {
+      _domo_user[i] = domo_user[i];
+    }
+    for (i = 0; i <= strlen(domo_passwd); i++) {
+      _domo_pass[i] = domo_passwd[i];
+    }
+  }
+  
   DEBUG_DOMO_PRINT("-Connecting Wifi "); DEBUG_DOMO_PRINTLN(MYSSID);
   WiFi.disconnect(false);
   WiFi.mode(WIFI_STA);
@@ -56,7 +92,6 @@ bool Domoticz::begin(void)
   DEBUG_DOMO_PRINT("Link:");DEBUG_DOMO_PRINT(WiFi.RSSI());DEBUG_DOMO_PRINTLN("dBm");
   return true;
 }
-
 
 
 bool Domoticz::send_log_message(char *message)
