@@ -1,8 +1,20 @@
 #include "Arduino.h"
 #include "domoticz.h"
 
+#ifdef ARDUINO_ARCH_ESP8266
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+#endif
+
+#ifdef ARDUINO_ARCH_AVR
+#include <SPI.h>
+#include <Ethernet.h>
+#include <ArduinoHttpClient.h>
+//#include <HttpClient.h>
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+  EthernetClient ethernet_client;
+  HttpClient client(ethernet_client,DOMOTICZ_SERVER,DOMOTICZ_PORT);
+#endif
 
 #include <ArduinoJson.h>
 
@@ -20,10 +32,12 @@
 
 Domoticz::Domoticz(void)
 {
+#ifdef ARDUINO_ARCH_ESP8266
   WiFi.disconnect(false);
   WiFi.mode(WIFI_STA);
   _wifi_ssid[0] = 0;
   _wifi_pass[0] = 0;
+#endif
   _domo_server[0] = 0;
   _domo_port[0] = 0;
   _domo_user[0] = 0;
@@ -33,9 +47,13 @@ Domoticz::Domoticz(void)
 
 bool Domoticz::begin(void)
 {
+#ifdef ARDUINO_ARCH_ESP8266
   begin(MYSSID, PASSWD, DOMOTICZ_SERVER, DOMOTICZ_PORT, "", "");
+#else
+  return begin(DOMOTICZ_SERVER, DOMOTICZ_PORT, "", "");
+#endif
 }
-
+#ifdef ARDUINO_ARCH_ESP8266
 bool Domoticz::begin(char *ssid, char *passwd,char *server,char *port, char *domo_user, char *domo_passwd )
 {
   char wifi_timeout = 0;
@@ -92,7 +110,37 @@ bool Domoticz::begin(char *ssid, char *passwd,char *server,char *port, char *dom
   DEBUG_DOMO_PRINT("Link:");DEBUG_DOMO_PRINT(WiFi.RSSI());DEBUG_DOMO_PRINTLN("dBm");
   return true;
 }
+#endif
 
+bool Domoticz::begin(char *server,char *port, char *domo_user, char *domo_passwd )
+{
+
+  int i;
+
+  for (i = 0; i <= strlen(server); i++) {
+    _domo_server[i] = server[i];
+  }
+  for (i = 0; i <= strlen(port); i++) {
+    _domo_port[i] = port[i];
+  }
+  if (strlen(domo_user)) {
+    for (i = 0; i <= strlen(domo_user); i++) {
+      _domo_user[i] = domo_user[i];
+    }
+    for (i = 0; i <= strlen(domo_passwd); i++) {
+      _domo_pass[i] = domo_passwd[i];
+    }
+  }
+  
+  DEBUG_DOMO_PRINTLN(F("-Connecting Ethernet ")); 
+  if (Ethernet.begin(mac) == 0) {
+    DEBUG_DOMO_PRINTLN(F("Failed to configure Ethernet using DHCP"));
+    while(1);
+  }
+  DEBUG_DOMO_PRINT("IP:");DEBUG_DOMO_PRINTLN(Ethernet.localIP());
+
+  return true;
+}
 
 bool Domoticz::send_log_message(char *message)
 {
@@ -500,7 +548,7 @@ bool Domoticz::get_device_data(int idx, char *data, char *name)
 bool Domoticz::_exchange(void)
 {
   int i;
-
+#ifdef ARDUINO_ARCH_ESP8266
   HTTPClient http;
   String url = "http://"+String(DOMOTICZ_SERVER)+":"+String(DOMOTICZ_PORT)+(String)_buff;
   DEBUG_DOMO_PRINT("- Domo  url: ");DEBUG_DOMO_PRINTLN(url);
@@ -522,9 +570,61 @@ bool Domoticz::_exchange(void)
   str.toCharArray(_buff, DOMO_BUFF_MAX);
   DEBUG_DOMO_PRINT("_buff content:"); DEBUG_DOMO_PRINTLN(strlen(_buff)); DEBUG_DOMO_PRINTLN(_buff);
   return true;
+#else
 
+  DEBUG_DOMO_PRINT(F("Get:"));DEBUG_DOMO_PRINTLN(_buff);
+  client.stop();
+  // client.setHttpResponseTimeout(10);
+ 
+  //ethernet_client.stop();
+  //client.setHttpResponseTimeout(100);
+  //client.beginRequest();
+  client.get(_buff);
+  ////client.sendBasicAuth("username", "password"); // send the username and password for authentication
+  //client.endRequest();
+  i = client.responseStatusCode();
+  DEBUG_DOMO_PRINT(F("GetStatus:"));DEBUG_DOMO_PRINTLN(i);
+  if (i != 200 ) {
+    client.stop();
+    return false;
+  }
+  
+  String str = client.responseBody();
+  str = str.substring(str.indexOf('{'));
+  for (i = 0; i < sizeof(_buff); i++) { _buff[i] = 0; }
+  str.toCharArray(_buff, DOMO_BUFF_MAX);
+  DEBUG_DOMO_PRINT("GetData:");DEBUG_DOMO_PRINTLN(_buff);
+  delay(100);
+  client.stop();
+  return true;
+#endif
+  
 }
-
+/*
+  String script = "/json.htm?";
+  String type_command = "type=command";
+  String param_udevice = "&param=udevice";
+  String idx_SetTemp = "&idx=3";
+  String nvalue_0 = "&nvalue=0";
+  String svalue = "&svalue=";
+  String dataInput = "";
+  static float temperature = -10.2;
+#if 1
+  domoticz_client.connect(domoticz_server, 8080);
+  // Set temp
+  dataInput = script + type_command + param_udevice + idx_SetTemp + nvalue_0 + svalue + temperature + "&battery=89";
+  Serial.println(dataInput);
+  Serial.println();
+  domoticz_client.println("GET " + dataInput + " HTTP/1.1");
+  //domoticz_client.println("Host: 10.171.140.73");
+  //domoticz_client.println("User-Agent: Mozilla/5.0");
+  //domoticz_client.println("Connection: close");
+  domoticz_client.println();
+  domoticz_client.stop();
+  delay(10000);
+  temperature += 1;
+#endif
+*/
 bool Domoticz::_get_device_status(int idx)
 {
   String str = "/json.htm?type=devices&rid=" + String(idx);
@@ -534,24 +634,41 @@ bool Domoticz::_get_device_status(int idx)
 
 float Domoticz::vbat(void)
 {
+#ifdef ARDUINO_ARCH_ESP8266
   return ESP.getVcc()/1000.0;
+#else
+  return 5.0;
+#endif
 }
 
 int Domoticz::vbat_percentage(void)
 {
+#ifdef ARDUINO_ARCH_ESP8266
   return map(ESP.getVcc(), DOMOTICZ_VBAT_MIN, DOMOTICZ_VBAT_MAX, 0, 100);
+#else
+  return 100;
+#endif
+
 }
 
 int Domoticz::rssi(void)
 {
+#ifdef ARDUINO_ARCH_ESP8266
   return WiFi.RSSI();
+#else
+  return 12;
+#endif
 }
 
 int Domoticz::rssi_12level(void)
 {
   int dbm;
   int quality;
+#ifdef ARDUINO_ARCH_ESP8266
   dbm = WiFi.RSSI();
+#else
+  dbm = 0;
+#endif
  // dBm to Quality:
   if(dbm <= -100) {
     quality = 0;
@@ -563,3 +680,4 @@ int Domoticz::rssi_12level(void)
   }
   return quality;
 }
+

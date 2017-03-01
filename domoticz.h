@@ -3,7 +3,7 @@
 
 #include "Arduino.h"
 #include "../config_domoticz.h"
-#include <ESP8266WiFi.h>
+
 
 #ifndef WIFI_TIMEOUT_MAX
 #define WIFI_TIMEOUT_MAX      50
@@ -43,7 +43,10 @@ class Domoticz
   public:
     Domoticz();
     bool begin(void);
+#ifdef ARDUINO_ARCH_ESP8266
     bool begin(char *ssid, char *passw,char *server,char *port, char *domo_user, char *domo_passwd);
+#endif
+    bool begin(char *server,char *port, char *domo_user, char *domo_passwd);
     bool stop(void);
 
     bool get_variable(int idx, char* var);
@@ -90,8 +93,10 @@ class Domoticz
     bool _update_sensor(int idx, int nvalue, int n, ...);
     bool _get_device_status(int idx);
     char _buff[DOMO_BUFF_MAX];
+#ifdef ARDUINO_ARCH_ESP8266
     char _wifi_ssid[32];
     char _wifi_pass[32];
+#endif
     char _domo_server[32];
     char _domo_port[4];
     char _domo_user[32];
