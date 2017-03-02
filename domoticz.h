@@ -2,8 +2,11 @@
 #define domoticz_h
 
 #include "Arduino.h"
-#include "../config_domoticz.h"
 
+#define DOMOTICZ_WIFI           1
+#define DOMOTICZ_ETHERNET       2
+
+#include "../config_domoticz.h"
 
 #ifndef WIFI_TIMEOUT_MAX
 #define WIFI_TIMEOUT_MAX      50
@@ -43,10 +46,11 @@ class Domoticz
   public:
     Domoticz();
     bool begin(void);
-#ifdef ARDUINO_ARCH_ESP8266
+#if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
     bool begin(char *ssid, char *passw,char *server,char *port, char *domo_user, char *domo_passwd);
-#endif
+#elif DOMOTICZ_INTERFACE==DOMOTICZ_ETHERNET
     bool begin(char *server,char *port, char *domo_user, char *domo_passwd);
+#endif
     bool stop(void);
 
     bool get_variable(int idx, char* var);
