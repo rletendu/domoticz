@@ -626,6 +626,7 @@ bool Domoticz::_exchange(void)
 
 #if DOMOTICZ_INTERFACE==DOMOTICZ_ETHERNET
 bool Domoticz::_exchange(void)
+{
   int i;
   DEBUG_DOMO_PRINT(F("Get:"));DEBUG_DOMO_PRINTLN(_buff);
   client.stop();
