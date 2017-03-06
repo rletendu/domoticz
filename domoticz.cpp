@@ -1,6 +1,19 @@
 #include "Arduino.h"
 #include "domoticz.h"
 
+
+#ifndef DOMOTICZ_INTERFACE
+  #warning No DOMOTICZ_INTERFACE defined, using default from architecture
+  #ifdef ARDUINO_ARCH_ESP8266
+    #define DOMOTICZ_INTERFACE DOMOTICZ_WIFI
+  #elif ARDUINO_ARCH_AVR
+    #define DOMOTICZ_INTERFACE DOMOTICZ_ETHERNET
+  #else
+    #error No defaultDOMOTICZ_INTERFACE for this architecture!
+  #endif
+#endif
+
+
 #if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
   #ifdef ARDUINO_ARCH_ESP8266
     #include <ESP8266WiFi.h>
