@@ -1,6 +1,7 @@
 #include "Arduino.h"
 #include "domoticz.h"
 
+#define USE_ARDUINO_HTTP_CLIENT 0
 
 #ifndef DOMOTICZ_INTERFACE
   #warning No DOMOTICZ_INTERFACE defined, using default from architecture
@@ -13,7 +14,6 @@
   #endif
 #endif
 
-
 #if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
   #ifdef ARDUINO_ARCH_ESP8266
     #include <ESP8266WiFi.h>
@@ -25,10 +25,15 @@
   #ifdef ARDUINO_ARCH_AVR
     #include <SPI.h>
     #include <Ethernet.h>
-    #include <ArduinoHttpClient.h>
-    byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+    #include <utility/w5100.h>
+    #if USE_ARDUINO_HTTP_CLIENT
+      #include <ArduinoHttpClient.h>
+    #endif
+    #ifndef ETHERNET_MAC
+      #define ETHERNET_MAC { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+    #endif
+    byte mac[] = ETHERNET_MAC;
     EthernetClient ethernet_client;
-    HttpClient client(ethernet_client,DOMOTICZ_SERVER,DOMOTICZ_PORT);
   #endif
 #else
   #error NO DOMOTICZ_INTERFACE selected
@@ -37,15 +42,19 @@
 #include <ArduinoJson.h>
 
 #ifndef DOMOTICZ_SERVER
-#error DOMOTICZ_SERVER is not defined
+  #error DOMOTICZ_SERVER is not defined
 #endif
 
 #ifndef DOMOTICZ_PORT
-#error DOMOTICZ_PORT is not defined
+  #error DOMOTICZ_PORT is not defined
 #endif
 
 #ifdef DOMOTICZ_SEND_VBAT
   ADC_MODE(ADC_VCC);
+#endif
+
+#ifndef ETHERNET_CONNECTION_RETRY
+#define ETHERNET_CONNECTION_RETRY 5
 #endif
 
 Domoticz::Domoticz(void)
@@ -55,12 +64,12 @@ Domoticz::Domoticz(void)
   WiFi.mode(WIFI_STA);
   _wifi_ssid[0] = 0;
   _wifi_pass[0] = 0;
-#elif DOMOTICZ_INTERFACE==DOMOTICZ_ETHERNET
+#endif
+
   _domo_server[0] = 0;
   _domo_port[0] = 0;
   _domo_user[0] = 0;
   _domo_pass[0] = 0;
-#endif
 }
 
 
@@ -86,7 +95,6 @@ bool Domoticz::begin(char *ssid, char *passwd,char *server,char *port, char *dom
   for (i = 0; i <= strlen(passwd); i++) {
     _wifi_pass[i] = passwd[i];
   }
-
   for (i = 0; i <= strlen(server); i++) {
     _domo_server[i] = server[i];
   }
@@ -177,14 +185,14 @@ bool Domoticz::get_variable(int idx, char* var)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN("-Error Parsing Json");
+      DEBUG_DOMO_PRINTLN(F("-Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN("-Parsing OK");
+      DEBUG_DOMO_PRINTLN(F("-Parsing OK"));
       if (root.containsKey("result")) {
         strcpy(var, root["result"][0]["Value"]);
       } else {
-        DEBUG_DOMO_PRINTLN("-Value not found");
+        DEBUG_DOMO_PRINTLN(F("-Value not found"));
         return false;
       }
       DEBUG_DOMO_PRINTLN(var);
@@ -203,14 +211,14 @@ bool Domoticz::get_servertime(char* servertime)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN("Error Parsing Json");
+      DEBUG_DOMO_PRINTLN(F("Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN("Parsing OK");
+      DEBUG_DOMO_PRINTLN(F("Parsing OK"));
       if (root.containsKey("ServerTime")) {
         strcpy(servertime, root["ServerTime"]);
       } else {
-        DEBUG_DOMO_PRINTLN("Value not found");
+        DEBUG_DOMO_PRINTLN(F("Value not found"));
         return false;
       }
       DEBUG_DOMO_PRINTLN(servertime);
@@ -229,14 +237,14 @@ bool Domoticz::get_sunrise(char* sunrise)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN("Error Parsing Json");
+      DEBUG_DOMO_PRINTLN(F("Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN("Parsing OK");
+      DEBUG_DOMO_PRINTLN(F("Parsing OK"));
       if (root.containsKey("Sunrise")) {
         strcpy(sunrise, root["Sunrise"]);
       } else {
-        DEBUG_DOMO_PRINTLN("Value not found");
+        DEBUG_DOMO_PRINTLN(F("Value not found"));
         return false;
       }
       DEBUG_DOMO_PRINTLN(sunrise);
@@ -255,14 +263,14 @@ bool Domoticz::get_sunset(char* sunset)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN("Error Parsing Json");
+      DEBUG_DOMO_PRINTLN(F("Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN("Parsing OK");
+      DEBUG_DOMO_PRINTLN(F("Parsing OK"));
       if (root.containsKey("Sunset")) {
         strcpy(sunset, root["Sunset"]);
       } else {
-        DEBUG_DOMO_PRINTLN("Value not found");
+        DEBUG_DOMO_PRINTLN(F("Value not found"));
         return false;
       }
       DEBUG_DOMO_PRINTLN(sunset);
@@ -613,12 +621,12 @@ bool Domoticz::_exchange(void)
 {
   int i;
   HTTPClient http;
-  String url = "http://"+String(DOMOTICZ_SERVER)+":"+String(DOMOTICZ_PORT)+(String)_buff;
+  String url = "http://"+String(_domo_server)+":"+String(_domo_port)+(String)_buff;
   DEBUG_DOMO_PRINT("- Domo  url: ");DEBUG_DOMO_PRINTLN(url);
   http.begin(url);
-#ifdef DOMOTICZ_USER
-  http.setAuthorization(DOMOTICZ_USER,DOMOTICZ_PASSWD);
-#endif
+  if (strlen(_domo_user)) {
+    http.setAuthorization(_domo_user,_domo_pass);
+  }
   int httpCode = http.GET();
   if(httpCode !=  HTTP_CODE_OK) {
     DEBUG_DOMO_PRINT("[HTTP] GET failed code: ");DEBUG_DOMO_PRINTLN(httpCode);
@@ -640,23 +648,31 @@ bool Domoticz::_exchange(void)
 #if DOMOTICZ_INTERFACE==DOMOTICZ_ETHERNET
 bool Domoticz::_exchange(void)
 {
-  int i;
-  DEBUG_DOMO_PRINT(F("Get:"));DEBUG_DOMO_PRINTLN(_buff);
+  int i,j;
+  DEBUG_DOMO_PRINT(F("Connecting Server "));
+  DEBUG_DOMO_PRINT(_domo_server); DEBUG_DOMO_PRINT(":");
+  DEBUG_DOMO_PRINTLN(_domo_port);
+
+  W5100.setRetransmissionCount(2); // 8 is the default ?
+
+#if USE_ARDUINO_HTTP_CLIENT == 1
+  HttpClient client(ethernet_client,_domo_server,atoi(_domo_port));
+  W5100.setRetransmissionCount(2); // 8 is the default ?
   client.stop();
+  DEBUG_DOMO_PRINT(F("Get:"));DEBUG_DOMO_PRINTLN(_buff);
   // client.setHttpResponseTimeout(10);
-  //ethernet_client.stop();
-  //client.setHttpResponseTimeout(100);
-  //client.beginRequest();
+  client.beginRequest();
   client.get(_buff);
-  ////client.sendBasicAuth("username", "password"); // send the username and password for authentication
-  //client.endRequest();
+  if (strlen(_domo_user)) {
+    client.sendBasicAuth(_domo_user, _domo_pass); // send the username and password for authentication
+  }
+  client.endRequest();
   i = client.responseStatusCode();
   DEBUG_DOMO_PRINT(F("GetStatus:"));DEBUG_DOMO_PRINTLN(i);
   if (i != 200 ) {
     client.stop();
     return false;
   }
-
   String str = client.responseBody();
   str = str.substring(str.indexOf('{'));
   for (i = 0; i < sizeof(_buff); i++) { _buff[i] = 0; }
@@ -665,30 +681,46 @@ bool Domoticz::_exchange(void)
   delay(100);
   client.stop();
   return true;
+
+#else // Not using ARDUINOHTTP lib
+  bool store = false;
+
+  ethernet_client.setTimeout(500);
+  for (j=0;;j++) {
+    i = ethernet_client.connect(_domo_server, atoi(_domo_port));
+    if (i <= 0 ) {
+      DEBUG_DOMO_PRINT(F("Server Connect Fail: ")); DEBUG_DOMO_PRINTLN(i);
+      if (j>ETHERNET_CONNECTION_RETRY)
+      return false;
+    } else {
+      DEBUG_DOMO_PRINTLN(F("Server Connect OK"));
+      break;
+    }
+  }
+  i = ethernet_client.println("GET " + String(_buff) + " HTTP/1.1");
+  i= ethernet_client.println();
+  i = 0;
+  while(ethernet_client.connected()) {
+    if (ethernet_client.available()) {
+      char c = ethernet_client.read();
+      // DEBUG_DOMO_PRINT(c);
+      if (c=='{') {
+          store = true;
+      }
+      if (store) {
+        _buff[i] = c;
+        i++;
+      }
+    }
+  }
+  ethernet_client.stop();
+  _buff[i] = 0;
+  DEBUG_DOMO_PRINT(F("Get:"));DEBUG_DOMO_PRINTLN(_buff);
+  if (store) {
+    return true;
+  } else {
+    return false;
+  }
+#endif
 }
 #endif
-/*
-  String script = "/json.htm?";
-  String type_command = "type=command";
-  String param_udevice = "&param=udevice";
-  String idx_SetTemp = "&idx=3";
-  String nvalue_0 = "&nvalue=0";
-  String svalue = "&svalue=";
-  String dataInput = "";
-  static float temperature = -10.2;
-#if 1
-  domoticz_client.connect(domoticz_server, 8080);
-  // Set temp
-  dataInput = script + type_command + param_udevice + idx_SetTemp + nvalue_0 + svalue + temperature + "&battery=89";
-  Serial.println(dataInput);
-  Serial.println();
-  domoticz_client.println("GET " + dataInput + " HTTP/1.1");
-  //domoticz_client.println("Host: 10.171.140.73");
-  //domoticz_client.println("User-Agent: Mozilla/5.0");
-  //domoticz_client.println("Connection: close");
-  domoticz_client.println();
-  domoticz_client.stop();
-  delay(10000);
-  temperature += 1;
-#endif
-*/
