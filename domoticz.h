@@ -97,9 +97,9 @@ class Domoticz
     bool _update_sensor(int idx, int nvalue, int n, ...);
     bool _get_device_status(int idx);
     void _dbg_connect_info(void);
-    
+
     char _buff[DOMO_BUFF_MAX];
-#ifdef ARDUINO_ARCH_ESP8266
+#if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
     char _wifi_ssid[32];
     char _wifi_pass[32];
 #endif
@@ -112,7 +112,7 @@ class Domoticz
 };
 
 
-// Scrappy way to add module in arduino subfolder ... But the only only I found using ARDUINO IDE
+// Very Scrappy way to add module in arduino subfolder ... But the only one found using ARDUINO IDE
 #ifdef ARDUINO
 #include "domoticz.cpp"
 #endif

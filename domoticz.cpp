@@ -59,8 +59,6 @@ int _b64_encode(const unsigned char* aInput, int aInputLen, unsigned char* aOutp
 Domoticz::Domoticz(void)
 {
 #if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
-  WiFi.disconnect(false);
-  WiFi.mode(WIFI_STA);
   _wifi_ssid[0] = 0;
   _wifi_pass[0] = 0;
 #endif
@@ -85,6 +83,8 @@ bool Domoticz::begin(void)
 #if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
 bool Domoticz::begin(char *ssid, char *passwd,char *server,char *port, char *domo_user, char *domo_passwd )
 {
+  WiFi.disconnect(false);
+  WiFi.mode(WIFI_STA);
   char wifi_timeout = 0;
   int i;
 
@@ -138,20 +138,17 @@ bool Domoticz::begin(char *server,char *port, char *domo_user, char *domo_passwd
   for (i = 0; i <= strlen(port); i++) {
     _domo_port[i] = port[i];
   }
-
-  if (strlen(domo_user)) {
-    for (i = 0; i <= strlen(domo_user); i++) {
-      _domo_user[i] = domo_user[i];
-    }
-    for (i = 0; i <= strlen(domo_passwd); i++) {
-      _domo_pass[i] = domo_passwd[i];
-    }
+  for (i = 0; i <= strlen(domo_user); i++) {
+    _domo_user[i] = domo_user[i];
+  }
+  for (i = 0; i <= strlen(domo_passwd); i++) {
+    _domo_pass[i] = domo_passwd[i];
   }
   _dbg_connect_info();
   DEBUG_DOMO_PRINTLN(F("-Connecting Ethernet "));
   if (Ethernet.begin(mac) == 0) {
-    DEBUG_DOMO_PRINTLN(F("Failed to configure Ethernet using DHCP"));
-    while(1);
+    DEBUG_DOMO_PRINTLN(F("-Failed to DHCP"));
+    return false;
   }
   DEBUG_DOMO_PRINT("IP:");DEBUG_DOMO_PRINTLN(Ethernet.localIP());
   return true;
@@ -160,6 +157,10 @@ bool Domoticz::begin(char *server,char *port, char *domo_user, char *domo_passwd
 
 void Domoticz::_dbg_connect_info(void)
 {
+  #if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
+  DEBUG_DOMO_PRINT(F("-Using Wifi SSID:passwd "));
+  DEBUG_DOMO_PRINT(_wifi_ssid);DEBUG_DOMO_PRINT(F(":"));DEBUG_DOMO_PRINTLN(_wifi_pass);
+  #endif
   DEBUG_DOMO_PRINT(F("-Using Server:Port "));
   DEBUG_DOMO_PRINT(_domo_server);DEBUG_DOMO_PRINT(F(":"));DEBUG_DOMO_PRINTLN(_domo_port);
   DEBUG_DOMO_PRINT(F("-Using User:Passwd "));
@@ -658,9 +659,11 @@ bool Domoticz::_exchange(void)
 bool Domoticz::_exchange(void)
 {
   int i,j;
-  bool store = false;
+  bool json_answer = false;
   unsigned char input[3];
-  unsigned char output[5]; // Leave space for a '\0'
+  unsigned char output[5];
+  bool status_line = true;
+  const char* http_ok = "HTTP/1.1 200 OK";
 
   DEBUG_DOMO_PRINT(F("-Connecting Server "));
   DEBUG_DOMO_PRINT(_domo_server); DEBUG_DOMO_PRINT(":");
@@ -682,8 +685,11 @@ bool Domoticz::_exchange(void)
       break;
     }
   }
+  // Send Http GET Request
   DEBUG_DOMO_PRINTLN(F("-Sending GET Request"));
   i = ethernet_client.println("GET " + String(_buff) + " HTTP/1.1");
+
+  // Send BasicAuth header if needed
   if (userLen) {
       DEBUG_DOMO_PRINTLN(F("-Sending BasicAuth Header"));
       ethernet_client.print("Authorization: Basic ");
@@ -696,7 +702,6 @@ bool Domoticz::_exchange(void)
           } else {
               input[inputOffset++] = _domo_pass[i-(userLen+1)];
           }
-          // See if we've got a chunk to encode
           if ( (inputOffset == 3) || (i == userLen+passwordLen) ) {
               _b64_encode(input, inputOffset, output, 4);
               output[4] = '\0';
@@ -704,27 +709,45 @@ bool Domoticz::_exchange(void)
               inputOffset = 0;
           }
       }
-       ethernet_client.println();
+      ethernet_client.println();
   }
+  // Empty line to finish request
   i= ethernet_client.println();
+
+  // Read Back Answer
   i = 0;
+  j = 0;
+
   while(ethernet_client.connected()) {
     if (ethernet_client.available()) {
       char c = ethernet_client.read();
-      // DEBUG_DOMO_PRINT(c);
-      if (c=='{') {
-          store = true;
+      //DEBUG_DOMO_PRINT(c);
+      if (status_line) {
+        if (c =='\r') {
+          status_line = false;
+        } else if ( c != http_ok[j] ) {
+              DEBUG_DOMO_PRINTLN(F("-Incorrect HTTP Status: "));
+              ethernet_client.stop();
+              return false;
+        }
+        j++;
       }
-      if (store) {
+      if (c=='{') {
+          json_answer = true;
+      }
+      if (json_answer) {
         _buff[i] = c;
         i++;
       }
     }
   }
-  ethernet_client.stop();
   _buff[i] = 0;
+
+  ethernet_client.stop();
+  delay(100);
+
   DEBUG_DOMO_PRINT(F("-GET Data:\n"));DEBUG_DOMO_PRINTLN(_buff);
-  if (store) {
+  if (json_answer) {
     return true;
   } else {
     return false;
@@ -735,7 +758,6 @@ bool Domoticz::_exchange(void)
 int _b64_encode(const unsigned char* aInput, int aInputLen, unsigned char* aOutput, int aOutputLen)
 {
     if (aOutputLen < (aInputLen*8)/6) {
-        // FIXME Should we return an error here, or just the length
         return (aInputLen*8)/6;
     }
     const char* b64_dictionary = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -755,12 +777,10 @@ int _b64_encode(const unsigned char* aInput, int aInputLen, unsigned char* aOutp
         aOutput[2] = '=';
         aOutput[3] = '=';
     } else {
-        // Break the input into 3-byte chunks and process each of them
         int i;
         for (i = 0; i < aInputLen/3; i++) {
             _b64_encode(&aInput[i*3], 3, &aOutput[i*4], 4);
         } if (aInputLen % 3 > 0) {
-             // It doesn't fit neatly into a 3-byte chunk, so process what's left
             _b64_encode(&aInput[i*3], aInputLen % 3, &aOutput[i*4], aOutputLen - (i*4));
         }
     }
