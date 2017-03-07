@@ -96,15 +96,17 @@ class Domoticz
     bool _exchange(void);
     bool _update_sensor(int idx, int nvalue, int n, ...);
     bool _get_device_status(int idx);
+    void _dbg_connect_info(void);
+    
     char _buff[DOMO_BUFF_MAX];
 #ifdef ARDUINO_ARCH_ESP8266
     char _wifi_ssid[32];
     char _wifi_pass[32];
 #endif
     char _domo_server[32];
-    char _domo_port[4];
+    char _domo_port[5];
     char _domo_user[32];
-    char _domo_pass[4];
+    char _domo_pass[32];
 
 
 };

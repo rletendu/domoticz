@@ -1,8 +1,8 @@
 #include "Arduino.h"
 #include "domoticz.h"
-
-#define USE_ARDUINO_HTTP_CLIENT 0
-
+/*
+  Select a default interface if unspecified
+*/
 #ifndef DOMOTICZ_INTERFACE
   #warning No DOMOTICZ_INTERFACE defined, using default from architecture
   #ifdef ARDUINO_ARCH_ESP8266
@@ -26,9 +26,6 @@
     #include <SPI.h>
     #include <Ethernet.h>
     #include <utility/w5100.h>
-    #if USE_ARDUINO_HTTP_CLIENT
-      #include <ArduinoHttpClient.h>
-    #endif
     #ifndef ETHERNET_MAC
       #define ETHERNET_MAC { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
     #endif
@@ -57,6 +54,8 @@
 #define ETHERNET_CONNECTION_RETRY 5
 #endif
 
+int _b64_encode(const unsigned char* aInput, int aInputLen, unsigned char* aOutput, int aOutputLen);
+
 Domoticz::Domoticz(void)
 {
 #if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
@@ -76,9 +75,9 @@ Domoticz::Domoticz(void)
 bool Domoticz::begin(void)
 {
 #if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
-  return begin(MYSSID, PASSWD, DOMOTICZ_SERVER, DOMOTICZ_PORT, "", "");
+  return begin(MYSSID, PASSWD, DOMOTICZ_SERVER, DOMOTICZ_PORT, DOMOTICZ_USER, DOMOTICZ_PASSWD);
 #elif DOMOTICZ_INTERFACE==DOMOTICZ_ETHERNET
-  return begin(DOMOTICZ_SERVER, DOMOTICZ_PORT, "", "");
+  return begin(DOMOTICZ_SERVER, DOMOTICZ_PORT, DOMOTICZ_USER, DOMOTICZ_PASSWD);
 #endif
 }
 
@@ -109,7 +108,7 @@ bool Domoticz::begin(char *ssid, char *passwd,char *server,char *port, char *dom
       _domo_pass[i] = domo_passwd[i];
     }
   }
-
+  _dbg_connect_info();
   DEBUG_DOMO_PRINT("-Connecting Wifi "); DEBUG_DOMO_PRINTLN(MYSSID);
   WiFi.disconnect(false);
   WiFi.mode(WIFI_STA);
@@ -139,6 +138,7 @@ bool Domoticz::begin(char *server,char *port, char *domo_user, char *domo_passwd
   for (i = 0; i <= strlen(port); i++) {
     _domo_port[i] = port[i];
   }
+
   if (strlen(domo_user)) {
     for (i = 0; i <= strlen(domo_user); i++) {
       _domo_user[i] = domo_user[i];
@@ -147,6 +147,7 @@ bool Domoticz::begin(char *server,char *port, char *domo_user, char *domo_passwd
       _domo_pass[i] = domo_passwd[i];
     }
   }
+  _dbg_connect_info();
   DEBUG_DOMO_PRINTLN(F("-Connecting Ethernet "));
   if (Ethernet.begin(mac) == 0) {
     DEBUG_DOMO_PRINTLN(F("Failed to configure Ethernet using DHCP"));
@@ -156,6 +157,14 @@ bool Domoticz::begin(char *server,char *port, char *domo_user, char *domo_passwd
   return true;
 }
 #endif
+
+void Domoticz::_dbg_connect_info(void)
+{
+  DEBUG_DOMO_PRINT(F("-Using Server:Port "));
+  DEBUG_DOMO_PRINT(_domo_server);DEBUG_DOMO_PRINT(F(":"));DEBUG_DOMO_PRINTLN(_domo_port);
+  DEBUG_DOMO_PRINT(F("-Using User:Passwd "));
+  DEBUG_DOMO_PRINT(_domo_user);DEBUG_DOMO_PRINT(F(":"));DEBUG_DOMO_PRINTLN(_domo_pass);
+}
 
 bool Domoticz::send_log_message(char *message)
 {
@@ -211,14 +220,14 @@ bool Domoticz::get_servertime(char* servertime)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN(F("Error Parsing Json"));
+      DEBUG_DOMO_PRINTLN(F("-Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN(F("Parsing OK"));
+      DEBUG_DOMO_PRINTLN(F("-Parsing OK"));
       if (root.containsKey("ServerTime")) {
         strcpy(servertime, root["ServerTime"]);
       } else {
-        DEBUG_DOMO_PRINTLN(F("Value not found"));
+        DEBUG_DOMO_PRINTLN(F("-Value not found"));
         return false;
       }
       DEBUG_DOMO_PRINTLN(servertime);
@@ -237,10 +246,10 @@ bool Domoticz::get_sunrise(char* sunrise)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN(F("Error Parsing Json"));
+      DEBUG_DOMO_PRINTLN(F("-Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN(F("Parsing OK"));
+      DEBUG_DOMO_PRINTLN(F("-Parsing OK"));
       if (root.containsKey("Sunrise")) {
         strcpy(sunrise, root["Sunrise"]);
       } else {
@@ -263,14 +272,14 @@ bool Domoticz::get_sunset(char* sunset)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN(F("Error Parsing Json"));
+      DEBUG_DOMO_PRINTLN(F("-Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN(F("Parsing OK"));
+      DEBUG_DOMO_PRINTLN(F("-Parsing OK"));
       if (root.containsKey("Sunset")) {
         strcpy(sunset, root["Sunset"]);
       } else {
-        DEBUG_DOMO_PRINTLN(F("Value not found"));
+        DEBUG_DOMO_PRINTLN(F("-Value not found"));
         return false;
       }
       DEBUG_DOMO_PRINTLN(sunset);
@@ -649,55 +658,54 @@ bool Domoticz::_exchange(void)
 bool Domoticz::_exchange(void)
 {
   int i,j;
-  DEBUG_DOMO_PRINT(F("Connecting Server "));
+  bool store = false;
+  unsigned char input[3];
+  unsigned char output[5]; // Leave space for a '\0'
+
+  DEBUG_DOMO_PRINT(F("-Connecting Server "));
   DEBUG_DOMO_PRINT(_domo_server); DEBUG_DOMO_PRINT(":");
   DEBUG_DOMO_PRINTLN(_domo_port);
-
   W5100.setRetransmissionCount(2); // 8 is the default ?
-
-#if USE_ARDUINO_HTTP_CLIENT == 1
-  HttpClient client(ethernet_client,_domo_server,atoi(_domo_port));
-  W5100.setRetransmissionCount(2); // 8 is the default ?
-  client.stop();
-  DEBUG_DOMO_PRINT(F("Get:"));DEBUG_DOMO_PRINTLN(_buff);
-  // client.setHttpResponseTimeout(10);
-  client.beginRequest();
-  client.get(_buff);
-  if (strlen(_domo_user)) {
-    client.sendBasicAuth(_domo_user, _domo_pass); // send the username and password for authentication
-  }
-  client.endRequest();
-  i = client.responseStatusCode();
-  DEBUG_DOMO_PRINT(F("GetStatus:"));DEBUG_DOMO_PRINTLN(i);
-  if (i != 200 ) {
-    client.stop();
-    return false;
-  }
-  String str = client.responseBody();
-  str = str.substring(str.indexOf('{'));
-  for (i = 0; i < sizeof(_buff); i++) { _buff[i] = 0; }
-  str.toCharArray(_buff, DOMO_BUFF_MAX);
-  DEBUG_DOMO_PRINT("GetData:");DEBUG_DOMO_PRINTLN(_buff);
-  delay(100);
-  client.stop();
-  return true;
-
-#else // Not using ARDUINOHTTP lib
-  bool store = false;
+  int userLen = strlen(_domo_user);
+  int passwordLen = strlen(_domo_pass);
+  int inputOffset = 0;
 
   ethernet_client.setTimeout(500);
   for (j=0;;j++) {
     i = ethernet_client.connect(_domo_server, atoi(_domo_port));
     if (i <= 0 ) {
-      DEBUG_DOMO_PRINT(F("Server Connect Fail: ")); DEBUG_DOMO_PRINTLN(i);
+      DEBUG_DOMO_PRINT(F("-Server Connect Fail: ")); DEBUG_DOMO_PRINTLN(i);
       if (j>ETHERNET_CONNECTION_RETRY)
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN(F("Server Connect OK"));
+      DEBUG_DOMO_PRINTLN(F("-Server Connect OK"));
       break;
     }
   }
+  DEBUG_DOMO_PRINTLN(F("-Sending GET Request"));
   i = ethernet_client.println("GET " + String(_buff) + " HTTP/1.1");
+  if (userLen) {
+      DEBUG_DOMO_PRINTLN(F("-Sending BasicAuth Header"));
+      ethernet_client.print("Authorization: Basic ");
+      for (i = 0; i < (userLen+1+passwordLen); i++) {
+          if (i < userLen) {
+              input[inputOffset++] = _domo_user[i];
+          }
+          else if (i == userLen) {
+              input[inputOffset++] = ':';
+          } else {
+              input[inputOffset++] = _domo_pass[i-(userLen+1)];
+          }
+          // See if we've got a chunk to encode
+          if ( (inputOffset == 3) || (i == userLen+passwordLen) ) {
+              _b64_encode(input, inputOffset, output, 4);
+              output[4] = '\0';
+              ethernet_client.print((char*)output);
+              inputOffset = 0;
+          }
+      }
+       ethernet_client.println();
+  }
   i= ethernet_client.println();
   i = 0;
   while(ethernet_client.connected()) {
@@ -715,12 +723,46 @@ bool Domoticz::_exchange(void)
   }
   ethernet_client.stop();
   _buff[i] = 0;
-  DEBUG_DOMO_PRINT(F("Get:"));DEBUG_DOMO_PRINTLN(_buff);
+  DEBUG_DOMO_PRINT(F("-GET Data:\n"));DEBUG_DOMO_PRINTLN(_buff);
   if (store) {
     return true;
   } else {
     return false;
   }
-#endif
 }
 #endif
+
+int _b64_encode(const unsigned char* aInput, int aInputLen, unsigned char* aOutput, int aOutputLen)
+{
+    if (aOutputLen < (aInputLen*8)/6) {
+        // FIXME Should we return an error here, or just the length
+        return (aInputLen*8)/6;
+    }
+    const char* b64_dictionary = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    if (aInputLen == 3) {
+        aOutput[0] = b64_dictionary[aInput[0] >> 2];
+        aOutput[1] = b64_dictionary[(aInput[0] & 0x3)<<4|(aInput[1]>>4)];
+        aOutput[2] = b64_dictionary[(aInput[1]&0x0F)<<2|(aInput[2]>>6)];
+        aOutput[3] = b64_dictionary[aInput[2]&0x3F];
+    } else if (aInputLen == 2) {
+        aOutput[0] = b64_dictionary[aInput[0] >> 2];
+        aOutput[1] = b64_dictionary[(aInput[0] & 0x3)<<4|(aInput[1]>>4)];
+        aOutput[2] = b64_dictionary[(aInput[1]&0x0F)<<2];
+        aOutput[3] = '=';
+    } else if (aInputLen == 1) {
+        aOutput[0] = b64_dictionary[aInput[0] >> 2];
+        aOutput[1] = b64_dictionary[(aInput[0] & 0x3)<<4];
+        aOutput[2] = '=';
+        aOutput[3] = '=';
+    } else {
+        // Break the input into 3-byte chunks and process each of them
+        int i;
+        for (i = 0; i < aInputLen/3; i++) {
+            _b64_encode(&aInput[i*3], 3, &aOutput[i*4], 4);
+        } if (aInputLen % 3 > 0) {
+             // It doesn't fit neatly into a 3-byte chunk, so process what's left
+            _b64_encode(&aInput[i*3], aInputLen % 3, &aOutput[i*4], aOutputLen - (i*4));
+        }
+    }
+    return ((aInputLen+2)/3)*4;
+}
