@@ -39,8 +39,6 @@
 #endif
 
 
-
-
 class Domoticz
 {
   public:
@@ -93,7 +91,7 @@ class Domoticz
     int rssi_12level(void);
 
   private:
-    bool _exchange(void);
+    bool _communicate(void);
     bool _update_sensor(int idx, int nvalue, int n, ...);
     bool _get_device_status(int idx);
     void _dbg_connect_info(void);
@@ -112,8 +110,29 @@ class Domoticz
 };
 
 
-// Very Scrappy way to add module in arduino subfolder ... But the only one found using ARDUINO IDE
-#ifdef ARDUINO
-#include "domoticz.cpp"
+//  Select a default interface if unspecified
+#ifndef DOMOTICZ_INTERFACE
+  #warning No DOMOTICZ_INTERFACE defined, using default from architecture
+  #ifdef ARDUINO_ARCH_ESP8266
+    #define DOMOTICZ_INTERFACE DOMOTICZ_WIFI
+  #elif ARDUINO_ARCH_AVR
+    #define DOMOTICZ_INTERFACE DOMOTICZ_ETHERNET
+  #else
+    #error No default DOMOTICZ_INTERFACE for this architecture!
+  #endif
 #endif
+
+// Very Scrappy way to add modules in arduino subfolder ...
+// But the only one found using ARDUINO IDE
+#ifdef ARDUINO
+  #include "domoticz.cpp"
+  #if DOMOTICZ_INTERFACE==DOMOTICZ_ETHERNET
+    #include "communicate_ethernet.c"
+  #elif DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
+    #include "communicate_ethernet.c"
+  #else
+    #error No DOMOTICZ_INTERFACE Specified
+  #endif
+#endif
+
 #endif
