@@ -2,8 +2,11 @@
 #define domoticz_h
 
 #include "Arduino.h"
+
+#define DOMOTICZ_WIFI           1
+#define DOMOTICZ_ETHERNET       2
+
 #include "../config_domoticz.h"
-#include <ESP8266WiFi.h>
 
 #ifndef WIFI_TIMEOUT_MAX
 #define WIFI_TIMEOUT_MAX      50
@@ -36,14 +39,16 @@
 #endif
 
 
-
-
 class Domoticz
 {
   public:
     Domoticz();
     bool begin(void);
+#if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
     bool begin(char *ssid, char *passw,char *server,char *port, char *domo_user, char *domo_passwd);
+#elif DOMOTICZ_INTERFACE==DOMOTICZ_ETHERNET
+    bool begin(char *server,char *port, char *domo_user, char *domo_passwd);
+#endif
     bool stop(void);
 
     bool get_variable(int idx, char* var);
@@ -86,23 +91,48 @@ class Domoticz
     int rssi_12level(void);
 
   private:
-    bool _exchange(void);
+    bool _communicate(void);
     bool _update_sensor(int idx, int nvalue, int n, ...);
     bool _get_device_status(int idx);
+    void _dbg_connect_info(void);
+
     char _buff[DOMO_BUFF_MAX];
+#if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
     char _wifi_ssid[32];
     char _wifi_pass[32];
+#endif
     char _domo_server[32];
-    char _domo_port[4];
+    char _domo_port[5];
     char _domo_user[32];
-    char _domo_pass[4];
+    char _domo_pass[32];
 
 
 };
 
 
-// Scrappy way to add module in arduino subfolder ... But the only only I found using ARDUINO IDE
-#ifdef ARDUINO
-#include "domoticz.cpp"
+//  Select a default interface if unspecified
+#ifndef DOMOTICZ_INTERFACE
+  #warning No DOMOTICZ_INTERFACE defined, using default from architecture
+  #ifdef ARDUINO_ARCH_ESP8266
+    #define DOMOTICZ_INTERFACE DOMOTICZ_WIFI
+  #elif ARDUINO_ARCH_AVR
+    #define DOMOTICZ_INTERFACE DOMOTICZ_ETHERNET
+  #else
+    #error No default DOMOTICZ_INTERFACE for this architecture!
+  #endif
 #endif
+
+// Very Scrappy way to add modules in arduino subfolder ...
+// But the only one found using ARDUINO IDE
+#ifdef ARDUINO
+  #include "domoticz.cpp"
+  #if DOMOTICZ_INTERFACE==DOMOTICZ_ETHERNET
+    #include "communicate_ethernet.c"
+  #elif DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
+    #include "communicate_ethernet.c"
+  #else
+    #error No DOMOTICZ_INTERFACE Specified
+  #endif
+#endif
+
 #endif

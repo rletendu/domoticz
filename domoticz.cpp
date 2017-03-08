@@ -1,17 +1,13 @@
 #include "Arduino.h"
 #include "domoticz.h"
-
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
-
 #include <ArduinoJson.h>
 
 #ifndef DOMOTICZ_SERVER
-#error DOMOTICZ_SERVER is not defined
+  #error DOMOTICZ_SERVER is not defined
 #endif
 
 #ifndef DOMOTICZ_PORT
-#error DOMOTICZ_PORT is not defined
+  #error DOMOTICZ_PORT is not defined
 #endif
 
 #ifdef DOMOTICZ_SEND_VBAT
@@ -20,79 +16,36 @@
 
 Domoticz::Domoticz(void)
 {
-  WiFi.disconnect(false);
-  WiFi.mode(WIFI_STA);
+#if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
   _wifi_ssid[0] = 0;
   _wifi_pass[0] = 0;
+#endif
   _domo_server[0] = 0;
   _domo_port[0] = 0;
   _domo_user[0] = 0;
   _domo_pass[0] = 0;
 }
 
-
 bool Domoticz::begin(void)
 {
-  begin(MYSSID, PASSWD, DOMOTICZ_SERVER, DOMOTICZ_PORT, "", "");
+#if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
+  return begin(MYSSID, PASSWD, DOMOTICZ_SERVER, DOMOTICZ_PORT, DOMOTICZ_USER, DOMOTICZ_PASSWD);
+#elif DOMOTICZ_INTERFACE==DOMOTICZ_ETHERNET
+  return begin(DOMOTICZ_SERVER, DOMOTICZ_PORT, DOMOTICZ_USER, DOMOTICZ_PASSWD);
+#endif
 }
 
-bool Domoticz::begin(char *ssid, char *passwd,char *server,char *port, char *domo_user, char *domo_passwd )
+void Domoticz::_dbg_connect_info(void)
 {
-  char wifi_timeout = 0;
-  int i;
-
-  for (i = 0; i <= strlen(ssid); i++) {
-    _wifi_ssid[i] = ssid[i];
-  }
-  for (i = 0; i <= strlen(passwd); i++) {
-    _wifi_pass[i] = passwd[i];
-  }
-
-  for (i = 0; i <= strlen(server); i++) {
-    _domo_server[i] = server[i];
-  }
-  for (i = 0; i <= strlen(port); i++) {
-    _domo_port[i] = port[i];
-  }
-  if (strlen(domo_user)) {
-    for (i = 0; i <= strlen(domo_user); i++) {
-      _domo_user[i] = domo_user[i];
-    }
-    for (i = 0; i <= strlen(domo_passwd); i++) {
-      _domo_pass[i] = domo_passwd[i];
-    }
-  }
-  
-  DEBUG_DOMO_PRINT("-Connecting Wifi "); DEBUG_DOMO_PRINTLN(MYSSID);
-  WiFi.disconnect(false);
-  WiFi.mode(WIFI_STA);
-  DEBUG_DOMO_PRINT("MAC: "); DEBUG_DOMO_PRINTLN(WiFi.macAddress().c_str());
-  WiFi.begin(MYSSID, PASSWD);
-  while (WiFi.status() != WL_CONNECTED) {
-    if (++wifi_timeout > WIFI_TIMEOUT_MAX) {
-      DEBUG_DOMO_PRINTLN("-TIMEOUT!");
-      DEBUG_DOMO_PRINT("-Wifi Status:");DEBUG_DOMO_PRINTLN(WiFi.status());
-      return false;
-      /* For reference 
-    typedef enum {
-    WL_NO_SHIELD        = 255,   // for compatibility with WiFi Shield library
-    WL_IDLE_STATUS      = 0,
-    WL_NO_SSID_AVAIL    = 1,
-    WL_SCAN_COMPLETED   = 2,
-    WL_CONNECTED        = 3,
-    WL_CONNECT_FAILED   = 4,
-    WL_CONNECTION_LOST  = 5,
-    WL_DISCONNECTED     = 6
-} wl_status_t;
-*/
-    }
-    delay(500);
-  }
-  DEBUG_DOMO_PRINT("IP:");DEBUG_DOMO_PRINTLN(WiFi.localIP());
-  DEBUG_DOMO_PRINT("Link:");DEBUG_DOMO_PRINT(WiFi.RSSI());DEBUG_DOMO_PRINTLN("dBm");
-  return true;
+  #if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
+  DEBUG_DOMO_PRINT(F("-Using Wifi SSID:passwd "));
+  DEBUG_DOMO_PRINT(_wifi_ssid);DEBUG_DOMO_PRINT(F(":"));DEBUG_DOMO_PRINTLN(_wifi_pass);
+  #endif
+  DEBUG_DOMO_PRINT(F("-Using Server:Port "));
+  DEBUG_DOMO_PRINT(_domo_server);DEBUG_DOMO_PRINT(F(":"));DEBUG_DOMO_PRINTLN(_domo_port);
+  DEBUG_DOMO_PRINT(F("-Using User:Passwd "));
+  DEBUG_DOMO_PRINT(_domo_user);DEBUG_DOMO_PRINT(F(":"));DEBUG_DOMO_PRINTLN(_domo_pass);
 }
-
 
 bool Domoticz::send_log_message(char *message)
 {
@@ -106,7 +59,7 @@ bool Domoticz::send_log_message(char *message)
   }
   str += String(message);
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (_exchange()) {
+  if (_communicate()) {
     return true;
   }
   else {
@@ -118,18 +71,18 @@ bool Domoticz::get_variable(int idx, char* var)
 {
   String str = "/json.htm?type=command&param=getuservariable&idx=" + String(idx);
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (_exchange()) {
+  if (_communicate()) {
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN("-Error Parsing Json");
+      DEBUG_DOMO_PRINTLN(F("-Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN("-Parsing OK");
+      DEBUG_DOMO_PRINTLN(F("-Parsing OK"));
       if (root.containsKey("result")) {
         strcpy(var, root["result"][0]["Value"]);
       } else {
-        DEBUG_DOMO_PRINTLN("-Value not found");
+        DEBUG_DOMO_PRINTLN(F("-Value not found"));
         return false;
       }
       DEBUG_DOMO_PRINTLN(var);
@@ -142,20 +95,28 @@ bool Domoticz::get_variable(int idx, char* var)
 
 bool Domoticz::get_servertime(char* servertime)
 {
+  uint8_t i;
+  #if 0
   String str = "/json.htm?type=command&param=getSunRiseSet";
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (_exchange()) {
+  #else
+  const char* base_message PROGMEM = "/json.htm?type=command&param=getSunRiseSet";
+  for (i=0;i<strlen(base_message);i++) {
+    _buff[i] = pgm_read_word_near( base_message +i);
+  }
+  #endif
+  if (_communicate()) {
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN("Error Parsing Json");
+      DEBUG_DOMO_PRINTLN(F("-Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN("Parsing OK");
+      DEBUG_DOMO_PRINTLN(F("-Parsing OK"));
       if (root.containsKey("ServerTime")) {
         strcpy(servertime, root["ServerTime"]);
       } else {
-        DEBUG_DOMO_PRINTLN("Value not found");
+        DEBUG_DOMO_PRINTLN(F("-Value not found"));
         return false;
       }
       DEBUG_DOMO_PRINTLN(servertime);
@@ -170,18 +131,18 @@ bool Domoticz::get_sunrise(char* sunrise)
 {
   String str = "/json.htm?type=command&param=getSunRiseSet";
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (_exchange()) {
+  if (_communicate()) {
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN("Error Parsing Json");
+      DEBUG_DOMO_PRINTLN(F("-Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN("Parsing OK");
+      DEBUG_DOMO_PRINTLN(F("-Parsing OK"));
       if (root.containsKey("Sunrise")) {
         strcpy(sunrise, root["Sunrise"]);
       } else {
-        DEBUG_DOMO_PRINTLN("Value not found");
+        DEBUG_DOMO_PRINTLN(F("Value not found"));
         return false;
       }
       DEBUG_DOMO_PRINTLN(sunrise);
@@ -196,18 +157,18 @@ bool Domoticz::get_sunset(char* sunset)
 {
   String str = "/json.htm?type=command&param=getSunRiseSet";
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (_exchange()) {
+  if (_communicate()) {
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN("Error Parsing Json");
+      DEBUG_DOMO_PRINTLN(F("-Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN("Parsing OK");
+      DEBUG_DOMO_PRINTLN(F("-Parsing OK"));
       if (root.containsKey("Sunset")) {
         strcpy(sunset, root["Sunset"]);
       } else {
-        DEBUG_DOMO_PRINTLN("Value not found");
+        DEBUG_DOMO_PRINTLN(F("-Value not found"));
         return false;
       }
       DEBUG_DOMO_PRINTLN(sunset);
@@ -224,7 +185,7 @@ bool Domoticz::_update_sensor(int idx, int nvalue, int n, ...)
   int vbat;
   int quality;
   int dbm;
-  
+
   String str = "/json.htm?type=command&param=udevice&idx=" + String(idx) + "&nvalue=";
   str +=nvalue;
   str += "&svalue=";
@@ -242,7 +203,7 @@ bool Domoticz::_update_sensor(int idx, int nvalue, int n, ...)
       str += ";";
     }
   }
- 
+
 #ifdef DOMOTICZ_SEND_VBAT
   str += "&battery=";
   str += vbat_percentage();
@@ -254,7 +215,7 @@ bool Domoticz::_update_sensor(int idx, int nvalue, int n, ...)
 #endif
 
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  if (_exchange()) {
+  if (_communicate()) {
     return true;
   } else {
     return false;
@@ -310,21 +271,21 @@ bool Domoticz::get_voltage(int idx, float *voltage, char* name)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN("-Error Parsing Json");
+      DEBUG_DOMO_PRINTLN(F("-Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN("-Parsing OK");
+      DEBUG_DOMO_PRINTLN(F("-Parsing OK"));
       if (root.containsKey("result")) {
         const char * n = root["result"][0]["Name"];
         strcpy(name, n);
         float v = root["result"][0]["Voltage"];
         *voltage = v;
       } else {
-        DEBUG_DOMO_PRINTLN("-Value not found");
+        DEBUG_DOMO_PRINTLN(F("-Value not found"));
         return false;
       }
-      DEBUG_DOMO_PRINT("Name:");DEBUG_DOMO_PRINTLN(name);
-      DEBUG_DOMO_PRINT("Voltage found:");DEBUG_DOMO_PRINTLN(*voltage);
+      DEBUG_DOMO_PRINT(F("Name:"));DEBUG_DOMO_PRINTLN(name);
+      DEBUG_DOMO_PRINT(F("Voltage found:"));DEBUG_DOMO_PRINTLN(*voltage);
       return true;
     }
   } else {
@@ -352,10 +313,10 @@ bool Domoticz::get_temp_hum(int idx, float *temp, uint8_t *hum, char *name)
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN("-Error Parsing Json");
+      DEBUG_DOMO_PRINTLN(F("-Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN("-Parsing OK");
+      DEBUG_DOMO_PRINTLN(F("-Parsing OK"));
       if (root.containsKey("result")) {
         float temperature = root["result"][0]["Temp"];
         const char * n = root["result"][0]["Name"];
@@ -369,12 +330,12 @@ bool Domoticz::get_temp_hum(int idx, float *temp, uint8_t *hum, char *name)
           *hum = 255;
         }
       } else {
-        DEBUG_DOMO_PRINTLN("-Value not found");
+        DEBUG_DOMO_PRINTLN(F("-Value not found"));
         return false;
       }
-      DEBUG_DOMO_PRINT("Name:");DEBUG_DOMO_PRINTLN(name);
-      DEBUG_DOMO_PRINT("Temp found:");DEBUG_DOMO_PRINTLN(*temp);
-      DEBUG_DOMO_PRINT("Hum found:");DEBUG_DOMO_PRINTLN(*hum);
+      DEBUG_DOMO_PRINT(F("Name:"));DEBUG_DOMO_PRINTLN(name);
+      DEBUG_DOMO_PRINT(F("Temp found:"));DEBUG_DOMO_PRINTLN(*temp);
+      DEBUG_DOMO_PRINT(F("Hum found:"));DEBUG_DOMO_PRINTLN(*hum);
       return true;
     }
   } else {
@@ -398,10 +359,10 @@ bool Domoticz::get_temp_hum_baro(int idx, float *temp, uint8_t *hum, uint16_t *b
     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(_buff);
     if (!root.success()) {
-      DEBUG_DOMO_PRINTLN("-Error Parsing Json");
+      DEBUG_DOMO_PRINTLN(F("-Error Parsing Json"));
       return false;
     } else {
-      DEBUG_DOMO_PRINTLN("-Parsing OK");
+      DEBUG_DOMO_PRINTLN(F("-Parsing OK"));
       if (root.containsKey("result")) {
         float temperature = root["result"][0]["Temp"];
         *temp = temperature;
@@ -412,7 +373,7 @@ bool Domoticz::get_temp_hum_baro(int idx, float *temp, uint8_t *hum, uint16_t *b
         const char * n = root["result"][0]["Name"];
         strcpy(name, n);
       } else {
-        DEBUG_DOMO_PRINTLN("-Value not found");
+        DEBUG_DOMO_PRINTLN(F("-Value not found"));
         return false;
       }
       DEBUG_DOMO_PRINT("Name:");DEBUG_DOMO_PRINTLN(name);
@@ -435,7 +396,7 @@ bool Domoticz::update_wind(int idx, const char* bearing, const char* speed_10ms)
 bool Domoticz::update_switch(int idx, bool state)
 {
   if (state) {
-    return _update_sensor(idx, 1, 1, "1"); 
+    return _update_sensor(idx, 1, 1, "1");
   } else {
     return _update_sensor(idx, 0, 1, "0");
   }
@@ -497,61 +458,50 @@ bool Domoticz::get_device_data(int idx, char *data, char *name)
   }
 }
 
-bool Domoticz::_exchange(void)
-{
-  int i;
-
-  HTTPClient http;
-  String url = "http://"+String(DOMOTICZ_SERVER)+":"+String(DOMOTICZ_PORT)+(String)_buff;
-  DEBUG_DOMO_PRINT("- Domo  url: ");DEBUG_DOMO_PRINTLN(url);
-  http.begin(url);
-#ifdef DOMOTICZ_USER
-  http.setAuthorization(DOMOTICZ_USER,DOMOTICZ_PASSWD);
-#endif
-  int httpCode = http.GET();
-  if(httpCode !=  HTTP_CODE_OK) {
-    DEBUG_DOMO_PRINT("[HTTP] GET failed code: ");DEBUG_DOMO_PRINTLN(httpCode);
-    http.end();
-    return false;
-  }
-  String str = http.getString();
-  http.end();
-
-  str = str.substring(str.indexOf('{'));
-  for (i = 0; i < sizeof(_buff); i++) { _buff[i] = 0; ESP.wdtFeed(); }
-  str.toCharArray(_buff, DOMO_BUFF_MAX);
-  DEBUG_DOMO_PRINT("_buff content:"); DEBUG_DOMO_PRINTLN(strlen(_buff)); DEBUG_DOMO_PRINTLN(_buff);
-  return true;
-
-}
-
 bool Domoticz::_get_device_status(int idx)
 {
   String str = "/json.htm?type=devices&rid=" + String(idx);
   str.toCharArray(_buff, DOMO_BUFF_MAX);
-  return _exchange();
+  return _communicate();
 }
 
 float Domoticz::vbat(void)
 {
+#ifdef ARDUINO_ARCH_ESP8266
   return ESP.getVcc()/1000.0;
+#else
+  return 5.0;
+#endif
 }
 
 int Domoticz::vbat_percentage(void)
 {
+#ifdef ARDUINO_ARCH_ESP8266
   return map(ESP.getVcc(), DOMOTICZ_VBAT_MIN, DOMOTICZ_VBAT_MAX, 0, 100);
+#else
+  return 100;
+#endif
+
 }
 
 int Domoticz::rssi(void)
 {
+#if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
   return WiFi.RSSI();
+#else
+  return 12;
+#endif
 }
 
 int Domoticz::rssi_12level(void)
 {
   int dbm;
   int quality;
+#if DOMOTICZ_INTERFACE==DOMOTICZ_WIFI
   dbm = WiFi.RSSI();
+#else
+  dbm = 0;
+#endif
  // dBm to Quality:
   if(dbm <= -100) {
     quality = 0;

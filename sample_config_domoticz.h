@@ -10,7 +10,7 @@
 #define DOMOTICZ_SEND_RSSI
 
 #define DOMOTICZ_SERVER   "192.168.2.201"
-#define DOMOTICZ_PORT     8080
+#define DOMOTICZ_PORT     "8080"
 
 // #define DOMOTICZ_USER     "domoticz_username"
 // #define DOMOTICZ_PASSWD   "domoticz_password"
@@ -20,8 +20,3 @@
 
 
 #endif //
-
-
-
-
-
